@@ -6,39 +6,33 @@ import os
 
 inputFile = argv[1]
 pathToFiles = argv[2]
+if pathToFiles.endswith("/"):
+    pathToFiles = pathToFiles[0:-1]
 
+#Create a dictionary of trio files that need to be phased
 fileDict = dict()
-if inputFile.endswith(".vcf"):
-    fileDict["1"] = {inputFile}
-
-elif inputFile.endswith(".txt"):
-    with open(inputFile) as sampleFile:
+with open(inputFile) as sampleFile:
+        header = sampleFile.readline()
+        headerList = header.rstrip().split("\t")
+        fileNameIndex = headerList.index("file_name")
+        familyIdIndex = headerList.index("family_id")
+        sampleIdIndex = headerList.index("sample_id")
+        chromosomes = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13",\
+"chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22"}
         for sample in sampleFile:
-            sample = sample.rstrip("\n")
-            fileDict.add(sample)
+            sampleData = sample.rstrip("\n").split("\t")
+            fileName = sampleData[fileNameIndex]
+            sampleFamilyId = sampleData[familyIdIndex]
+            sampleId = sampleData[sampleIdIndex]
+            if sampleFamilyId not in fileDict:
+                fileDict[sampleFamilyId] = set()
+                for chromosome in chromosomes:
+                    #individualFileName = "{}/{}/{}/{}_{}".format(pathToFiles, sampleFamilyId, sampleId, sampleId, chromosome)
+                    trioFileName = "{}/{}/{}_trio/{}_trio_{}_phased.vcf".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId, chromosome)
+                    #fileDict.add(individualFileName)
+                    fileDict[sampleFamilyId].add(trioFileName)
 
-elif inputFile.endswith(".tsv"):
-    with open(inputFile) as sampleFile:
-            header = sampleFile.readline()
-            headerList = header.rstrip().split("\t")
-            fileNameIndex = headerList.index("file_name")
-            familyIdIndex = headerList.index("family_id")
-            sampleIdIndex = headerList.index("sample_id")
-            chromosomes = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13",\
-    "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22"}
-            for sample in sampleFile:
-                sampleData = sample.rstrip("\n").split("\t")
-                fileName = sampleData[fileNameIndex]
-                sampleFamilyId = sampleData[familyIdIndex]
-                sampleId = sampleData[sampleIdIndex]
-                if sampleFamilyId not in fileDict:
-                    fileDict[sampleFamilyId] = set()
-                    for chromosome in chromosomes:
-                        #individualFileName = "{}/{}/{}/{}_{}".format(pathToFiles, sampleFamilyId, sampleId, sampleId, chromosome)
-                        trioFileName = "{}/{}/{}_trio/{}_trio_{}_phased.vcf".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId, chromosome)
-                        #fileDict.add(individualFileName)
-                        fileDict[sampleFamilyId].add(trioFileName)
-
+#Create a position dictionary based off of the legend.gz files
 posDict = dict()
 for file in glob.glob("/references/1000GP_Phase3/*legend.gz"):
     with gzip.open(file, 'rt') as legend:
@@ -62,6 +56,7 @@ for file in glob.glob("/references/1000GP_Phase3/*legend.gz"):
 
 print("Dictionary Created\n")
 
+#Create new files with alt/ref flipped and remove sites with mendel errors
 for key, value in fileDict.items():
     for file in value:
         rawCount = 0

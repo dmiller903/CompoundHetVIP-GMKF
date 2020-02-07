@@ -16,31 +16,21 @@ if pathToFiles.endswith("/"):
     
 #Create a list of file(s) that need to have unplaced and multiallelic sites removed
 fileSet = set()
-if inputFile.endswith(".gz"):
-    fileSet.add(inputFile)
-
-elif inputFile.endswith(".txt"):
-    with open(inputFile) as sampleFile:
-        for sample in sampleFile:
-            sample = sample.rstrip("\n")
-            fileSet.add(sample)
-
-elif inputFile.endswith(".tsv"):
-    with open(inputFile) as sampleFile:
-        header = sampleFile.readline()
-        headerList = header.rstrip().split("\t")
-        fileNameIndex = headerList.index("file_name")
-        familyIdIndex = headerList.index("family_id")
-        sampleIdIndex = headerList.index("sample_id")
-        for sample in sampleFile:
-            sampleData = sample.rstrip("\n").split("\t")
-            fileName = sampleData[fileNameIndex]
-            sampleFamilyId = sampleData[familyIdIndex]
-            sampleId = sampleData[sampleIdIndex]
-            individualFileName = "{}/{}/{}/{}_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
-            trioFileName = "{}/{}/{}_trio/{}_trio_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
-            fileSet.add(individualFileName)
-            fileSet.add(trioFileName)
+with open(inputFile) as sampleFile:
+    header = sampleFile.readline()
+    headerList = header.rstrip().split("\t")
+    fileNameIndex = headerList.index("file_name")
+    familyIdIndex = headerList.index("family_id")
+    sampleIdIndex = headerList.index("sample_id")
+    for sample in sampleFile:
+        sampleData = sample.rstrip("\n").split("\t")
+        fileName = sampleData[fileNameIndex]
+        sampleFamilyId = sampleData[familyIdIndex]
+        sampleId = sampleData[sampleIdIndex]
+        individualFileName = "{}/{}/{}/{}_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
+        trioFileName = "{}/{}/{}_trio/{}_trio_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
+        fileSet.add(individualFileName)
+        fileSet.add(trioFileName)
 
 #Remove Unplaced sites, multiallelic sites, and sites where the genotype ./. occurs more than once
 chrToKeep = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13",\

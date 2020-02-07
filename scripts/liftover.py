@@ -14,31 +14,21 @@ if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
 #Create a list of file(s) to be liftedover
-fileSet = set()
-if inputFile.endswith(".gz"):
-    fileSet.add(inputFile)
 
-elif inputFile.endswith(".txt"):
-    with open(inputFile) as sampleFile:
-        for sample in sampleFile:
-            sample = sample.rstrip("\n")
-            fileSet.add(sample)
-
-elif inputFile.endswith(".tsv"):
-    with open(inputFile) as sampleFile:
-        header = sampleFile.readline()
-        headerList = header.rstrip().split("\t")
-        fileNameIndex = headerList.index("file_name")
-        familyIdIndex = headerList.index("family_id")
-        sampleIdIndex = headerList.index("sample_id")
-        for sample in sampleFile:
-            sampleData = sample.rstrip("\n").split("\t")
-            sampleFamilyId = sampleData[familyIdIndex]
-            sampleId = sampleData[sampleIdIndex]
-            individualFileName = "{}/{}/{}/{}_parsed.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
-            trioFileName = "{}/{}/{}_trio/{}_trio.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
-            fileSet.add(individualFileName)
-            fileSet.add(trioFileName)
+with open(inputFile) as sampleFile:
+    header = sampleFile.readline()
+    headerList = header.rstrip().split("\t")
+    fileNameIndex = headerList.index("file_name")
+    familyIdIndex = headerList.index("family_id")
+    sampleIdIndex = headerList.index("sample_id")
+    for sample in sampleFile:
+        sampleData = sample.rstrip("\n").split("\t")
+        sampleFamilyId = sampleData[familyIdIndex]
+        sampleId = sampleData[sampleIdIndex]
+        individualFileName = "{}/{}/{}/{}_parsed.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
+        trioFileName = "{}/{}/{}_trio/{}_trio.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
+        fileSet.add(individualFileName)
+        fileSet.add(trioFileName)
 
 #Liftover file(s)
 def liftoverFiles(file):

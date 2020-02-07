@@ -16,40 +16,31 @@ diseaseName = re.findall(r"[\w_\-]+", pathToFiles)[0]
 #Create a list of file(s) that need to have unplaced and multiallelic sites removed
 fileDict = dict()
 concatFiles = list()
-if inputFile.endswith(".gz"):
-    fileDict.add(inputFile)
+with open(inputFile) as sampleFile:
+    header = sampleFile.readline()
+    headerList = header.rstrip().split("\t")
+    fileNameIndex = headerList.index("file_name")
+    familyIdIndex = headerList.index("family_id")
+    sampleIdIndex = headerList.index("sample_id")
+    chromosomes = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13",\
+"chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22"]
+    for sample in sampleFile:
+        sampleData = sample.rstrip("\n").split("\t")
+        fileName = sampleData[fileNameIndex]
+        sampleFamilyId = sampleData[familyIdIndex]
+        sampleId = sampleData[sampleIdIndex]
+        if sampleFamilyId not in fileDict:
+            fileDict[sampleFamilyId] = list()
+            # concatFileName is what each trio will be named after each trio is combined into one trio
+            concatFileName = "{}/{}/{}_trio/{}_trio_phased_combined.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
+            concatFiles.append(concatFileName)
+            for chromosome in chromosomes:
+                #individualFileName = "{}/{}/{}/{}_{}".format(pathToFiles, sampleFamilyId, sampleId, sampleId, chromosome)
+                trioFileName = "{}/{}/{}_trio/{}_trio_{}_phased_reverted.vcf".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId, chromosome)
+                #fileDict.add(individualFileName)
+                fileDict[sampleFamilyId].append(trioFileName)
 
-elif inputFile.endswith(".txt"):
-    with open(inputFile) as sampleFile:
-        for sample in sampleFile:
-            sample = sample.rstrip("\n")
-            fileDict.add(sample)
-
-elif inputFile.endswith(".tsv"):
-    with open(inputFile) as sampleFile:
-        header = sampleFile.readline()
-        headerList = header.rstrip().split("\t")
-        fileNameIndex = headerList.index("file_name")
-        familyIdIndex = headerList.index("family_id")
-        sampleIdIndex = headerList.index("sample_id")
-        chromosomes = ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13",\
- "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22"]
-        for sample in sampleFile:
-            sampleData = sample.rstrip("\n").split("\t")
-            fileName = sampleData[fileNameIndex]
-            sampleFamilyId = sampleData[familyIdIndex]
-            sampleId = sampleData[sampleIdIndex]
-            if sampleFamilyId not in fileDict:
-                fileDict[sampleFamilyId] = list()
-                # concatFileName is what each trio will be named after each trio is combined into one trio
-                concatFileName = "{}/{}/{}_trio/{}_trio_phased_combined.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
-                concatFiles.append(concatFileName)
-                for chromosome in chromosomes:
-                    #individualFileName = "{}/{}/{}/{}_{}".format(pathToFiles, sampleFamilyId, sampleId, sampleId, chromosome)
-                    trioFileName = "{}/{}/{}_trio/{}_trio_{}_phased_reverted.vcf".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId, chromosome)
-                    #fileDict.add(individualFileName)
-                    fileDict[sampleFamilyId].append(trioFileName)
-
+#Concatenate individual chromosomes into one file for each trio
 def concatMerge(trio):
     files = fileDict[trio]
 
