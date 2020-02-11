@@ -1,6 +1,7 @@
 from sys import argv
 import re
 import statistics
+import gzip
 
 inputFile = argv[1]
 outputFile = argv[2]
@@ -23,7 +24,7 @@ with open(inputFile) as chFile:
 
 # Create a ncbi dictionary of gene lengths
 ncbiLength = {}
-with open(ncbiFile) as ncbiFile:
+with gzip.open(ncbiFile, 'rt') as ncbiFile:
     header = ncbiFile.readline()
     headerList = header.rstrip("\n").split("\t")
     geneNameIndex = headerList.index("Symbol")
@@ -45,7 +46,7 @@ with open(ncbiFile) as ncbiFile:
 
 ensembleLength = {}
 # Create an ensemble dictionary of gene lengths
-with open(ensembleFile) as ensembleFile:
+with gzip.open(ensembleFile, 'rt') as ensembleFile:
     for line in ensembleFile:
         if "#" not in line:
             lineList = line.rstrip("\n").split("\t")
