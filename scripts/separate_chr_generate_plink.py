@@ -28,16 +28,14 @@ with open(inputFile) as sampleFile:
         fileName = sampleData[fileNameIndex]
         sampleFamilyId = sampleData[familyIdIndex]
         sampleId = sampleData[sampleIdIndex]
-        individualFileName = "{}/{}/{}/{}_liftover_parsed.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
         trioFileName = "{}/{}/{}_trio/{}_trio_liftover_parsed.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
-        fileSet.add(individualFileName)
         fileSet.add(trioFileName)
 
 plinkFileSet = set()
 #Separate combined trio files and individual participant files by chromosome
 def separateByChr(file):
     with gzip.open(file, "rt") as vcf:
-        fileName = re.findall(r"([\w\-/_]+)_liftover_parsed\.?.*\.?.*\.gz", file)[0]
+        fileName = re.findall(r"([\w\-/_]+)_liftover_parsed\.vcf\.gz", file)[0]
         outputName = "{}_".format(fileName)
         header = ""
         tmpFileSet = set()
@@ -50,14 +48,11 @@ def separateByChr(file):
             elif not line.startswith("#") and line.split("\t")[0] not in chromosomeSet:
                 chromosomeNumber = line.split("\t")[0]
                 os.system("rm {}{}.*".format(outputName, chromosomeNumber))
-                os.system("rm {}{}*harmonized.*".format(outputName, chromosomeNumber))
-                os.system("rm {}{}*harmonized*.*".format(outputName, chromosomeNumber))
                 with open("{}{}.vcf".format(outputName, chromosomeNumber), "w") as chromosome:
                     chromosome.write(header)
                     chromosome.write(line)
                     chromosomeSet.add(chromosomeNumber)
-                    if "trio" in outputName:
-                        tmpFileSet.add("{}{}.vcf".format(outputName, chromosomeNumber))
+                    tmpFileSet.add("{}{}.vcf".format(outputName, chromosomeNumber))
             else:
                 with open("{}{}.vcf".format(outputName, chromosomeNumber), "a") as chromosome:
                     chromosome.write(line)
