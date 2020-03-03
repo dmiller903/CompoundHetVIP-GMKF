@@ -29,7 +29,6 @@ with open(inputFile) as sampleFile:
         sampleId = sampleData[sampleIdIndex]
         individualFileName = "{}/{}/{}/{}_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
         trioFileName = "{}/{}/{}_trio/{}_trio_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
-        fileSet.add(individualFileName)
         fileSet.add(trioFileName)
 
 #Remove Unplaced sites, multiallelic sites, and sites where the genotype ./. occurs more than once
