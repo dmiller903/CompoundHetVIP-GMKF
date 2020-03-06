@@ -31,10 +31,11 @@ with open(inputFile) as sampleFile:
         trioFileName = "{}/{}/{}_trio/{}_trio_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
         fileSet.add(trioFileName)
 
-#Remove Unplaced sites, multiallelic sites, and sites where the genotype ./. occurs more than once
+# Set of Chromosomes to Keep
 chrToKeep = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13",\
  "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY"}
 
+# Remove Unplaced sites, multiallelic sites, and sites where the genotype ./. occurs more than once
 filesToRemoveDuplicates = []
 
 def removeSites(file):
@@ -51,8 +52,8 @@ def removeSites(file):
                     outFile.write(line)
             else:
                 splitLine = line.split("\t")
-                # Only keep positions where genotype information is available for all samples
-                if splitLine[0] in chrToKeep and "," not in splitLine[4] and "./." not in line:
+                # Only keep positions where genotype information is available for patient and at least one parent
+                if splitLine[0] in chrToKeep and "," not in splitLine[4] and line.count("./.") < 2:
                     outFile.write(line)
 
     os.system("bgzip -f {}".format(outputName))
