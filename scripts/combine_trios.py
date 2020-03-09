@@ -5,17 +5,31 @@ import time
 from sys import argv
 import concurrent.futures
 
+# Keep track of when the script began
 startTime = time.time()
 char = '\n' + ('*' * 70) + '\n'
 
-#Input file or list of files
+# Input file or list of files
 inputFile = argv[1]
 pathToFiles = argv[2]
 numCores = int(argv[3])
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
-#Create a dictionary of files that need to be combined into one vcf file
+# Download reference files if needed
+if not os.path.exists("/references/Homo_sapiens_assembly38.fasta") and isGvcf == "y":
+    os.system("wget --no-check-certificate \
+    https://files.osf.io/v1/resources/3znuj/providers/osfstorage/5d9f54d2a7bc73000ee99fd6/?zip= -O /tmp/references.zip \
+    && unzip /tmp/references.zip -d /tmp/references \
+    && rm /tmp/references.zip \
+    && gzip -d /tmp/references/*.gz")
+    for file in glob.glob("/tmp/references/*"):
+        fileName = file.split("/")[-1]
+        if not os.path.exists(f"/references/{fileName}"):
+            os.system(f"mv {file} /references/")
+    os.system("chmod 777 /references/*")
+
+# Create a dictionary of files that need to be combined into one vcf file
 fileDict = {}
 with open(inputFile) as sampleFile:
     header = sampleFile.readline()
@@ -28,7 +42,7 @@ with open(inputFile) as sampleFile:
         print(sampleData)
         sampleId = sampleData[sampleIdIndex]
         sampleFamilyId = sampleData[familyIdIndex]
-        actualFileName = "{}/{}/{}/{}_parsed.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
+        actualFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleId}/{sampleId}_parsed.vcf.gz"
         if sampleFamilyId not in fileDict:
             fileDict[sampleFamilyId] = [actualFileName]
         else:
@@ -88,33 +102,35 @@ def createFamFiles(proband):
             probandStatus = sampleData[probandIndex]
             gender = sampleData[genderIndex]
             if probandStatus == "Yes" and familyId == sampleFamilyId:
-                sampleDict[sampleId] = "{}\t{}\t{}\t{}\t{}\t2\n".format(sampleFamilyId, sampleId, paternal, maternal, gender)
+                sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t{paternal}\t{maternal}\t{gender}\t2\n"
             elif probandStatus == "No" and familyId == sampleFamilyId:
-                sampleDict[sampleId] = "{}\t{}\t0\t0\t{}\t1\n".format(sampleFamilyId, sampleId, gender)
-    with open("{}/{}/{}_trio.fam".format(pathToFiles, familyId, familyId), "w") as outputFile:
+                sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t0\t0\t{gender}\t1\n"
+    with open(f"{pathToFiles}/{familyId}/{familyId}_trio.fam", "w") as outputFile:
         for key, value in sorted(sampleDict.items()):
             outputFile.write(value)
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
     executor.map(createFamFiles, probandDict)
 
-filesToGenotype = []
 # Use GATK to combine all trios into one vcf
+filesToGenotype = []
 def combineTrios(trio):
     files = fileDict[trio]
     fileString = ""
-    os.system("mkdir {}/{}/{}_trio".format(pathToFiles, trio, trio))
-    outputName = "{}/{}/{}_trio/{}_trio.vcf.gz".format(pathToFiles, trio, trio, trio)
+    os.system(f"mkdir {pathToFiles}/{trio}/{trio}_trio")
+    outputName = f"{pathToFiles}/{trio}/{trio}_trio/{trio}_trio.vcf.gz"
     for file in files:
-        fileString += "-V {} ".format(file)
-        os.system("/root/miniconda2/bin/gatk IndexFeatureFile -F {}".format(file))
-    os.system("/root/miniconda2/bin/gatk CombineGVCFs -R /references/Homo_sapiens_assembly38.fasta {} -O {}".format(fileString, outputName))
+        fileString += f"-V {file} "
+        os.system(f"/root/miniconda2/bin/gatk IndexFeatureFile -F {file}")
+    os.system(f"/root/miniconda2/bin/gatk CombineGVCFs -R /references/Homo_sapiens_assembly38.fasta {fileString} -O {outputName}")
     return(outputName)
+
 with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
     outputName = executor.map(combineTrios, fileDict)
     for file in outputName:
         filesToGenotype.append(file)
 
+# Print message and how long the previous steps took
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
 timeElapsedHours = round(timeElapsedMinutes / 60, 2)
-print('{}Trios have been combined. Time elapsed: {} minutes ({} hours){}'.format(char, timeElapsedMinutes, timeElapsedHours, char))
+print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')
