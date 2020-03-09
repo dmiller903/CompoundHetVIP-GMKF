@@ -5,16 +5,17 @@ import time
 from sys import argv
 import concurrent.futures
 
+# Keep track of when the script began
 startTime = time.time()
 char = '\n' + ('*' * 70) + '\n'
 
-#Input file or list of files
+# Input file or list of files
 inputFile = argv[1]
 pathToFiles = argv[2]
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
     
-#Create a list of file(s) that need to have unplaced and multiallelic sites removed
+# Create a list of file(s) that need to have unplaced and multiallelic sites removed
 fileSet = set()
 with open(inputFile) as sampleFile:
     header = sampleFile.readline()
@@ -27,8 +28,8 @@ with open(inputFile) as sampleFile:
         fileName = sampleData[fileNameIndex]
         sampleFamilyId = sampleData[familyIdIndex]
         sampleId = sampleData[sampleIdIndex]
-        individualFileName = "{}/{}/{}/{}_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleId, sampleId)
-        trioFileName = "{}/{}/{}_trio/{}_trio_liftover.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
+        individualFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleId}/{sampleId}_liftover.vcf.gz"
+        trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_liftover.vcf.gz"
         fileSet.add(trioFileName)
 
 # Set of Chromosomes to Keep
@@ -40,7 +41,7 @@ filesToRemoveDuplicates = []
 
 def removeSites(file):
     fileName = re.findall(r"([\w\-/_]+)_liftover\.?.*\.?.*\.gz", file)[0]
-    outputName = "{}_no_ambiguous_sites.vcf".format(fileName)
+    outputName = f"{fileName}_no_ambiguous_sites.vcf"
     with gzip.open(file, "rt") as inputFile, open(outputName, "wt") as outFile:
         for line in inputFile:
             if line.startswith("#") and "##contig=<ID=" not in line:
@@ -55,24 +56,24 @@ def removeSites(file):
                 if splitLine[0] in chrToKeep and "," not in splitLine[4] and line.count("./.") < 2:
                     outFile.write(line)
 
-    os.system("bgzip -f {}".format(outputName))
-    return("{}.gz".format(outputName))
+    os.system(f"bgzip -f {outputName}")
+    return(f"{outputName}.gz")
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=46) as executor:
     fileName = executor.map(removeSites, fileSet)
     for file in fileName:
         filesToRemoveDuplicates.append(file)
 
-#Output message and time complete
+# Output message and time complete
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
 timeElapsedHours = round(timeElapsedMinutes / 60, 2)
-print('{}Unplaced sites, multiallelic sites, and sites where ./. occurs more than once have been removed. Time elapsed: {} minutes ({} hours){}'.format(char, timeElapsedMinutes, timeElapsedHours, char))
+print(f'{char}Unplaced sites, multiallelic sites, and sites where ./. occurs more than once have been removed. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')
 
-#Remove all duplicate sites
+# Remove all duplicate sites
 def removeDuplicates(file):
     fileName = re.findall(r"([\w\-/_]+)_no_ambiguous_sites\.?.*\.?.*\.gz", file)[0]
-    outputName = "{}_liftover_parsed.vcf".format(fileName)
-    duplicateFile = "{}_removedDuplicates.vcf".format(fileName)
+    outputName = f"{fileName}_liftover_parsed.vcf"
+    duplicateFile = f"{fileName}_removedDuplicates.vcf"
 
     posDict = dict()
     dupDict = dict()
@@ -105,11 +106,11 @@ def removeDuplicates(file):
                 outFile.write(line)
                 duplicates.write(line)
 
-    os.system("bgzip -f {}".format(outputName))
+    os.system(f"bgzip -f {outputName}")
 with concurrent.futures.ProcessPoolExecutor(max_workers=46) as executor:
     executor.map(removeDuplicates, filesToRemoveDuplicates)
 
-
+# Output time it took to complete
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
 timeElapsedHours = round(timeElapsedMinutes / 60, 2)
-print('{}Duplicate sites removed. Time elapsed: {} minutes ({} hours){}'.format(char, timeElapsedMinutes, timeElapsedHours, char))
+print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')

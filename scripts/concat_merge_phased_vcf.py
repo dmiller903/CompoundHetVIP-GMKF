@@ -1,10 +1,13 @@
-import glob
 import re
 import os
 import concurrent.futures
-import subprocess
 from sys import argv
 import gzip
+import time
+
+#Keep track of when the script began
+startTime = time.time()
+char = '\n' + ('*' * 70) + '\n'
 
 #Input file or list of files
 inputFile = argv[1]
@@ -32,12 +35,10 @@ with open(inputFile) as sampleFile:
         if sampleFamilyId not in fileDict:
             fileDict[sampleFamilyId] = list()
             # concatFileName is what each trio will be named after each trio is combined into one trio
-            concatFileName = "{}/{}/{}_trio/{}_trio_phased_combined.vcf.gz".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId)
+            concatFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_phased_combined.vcf.gz"
             concatFiles.append(concatFileName)
             for chromosome in chromosomes:
-                #individualFileName = "{}/{}/{}/{}_{}".format(pathToFiles, sampleFamilyId, sampleId, sampleId, chromosome)
-                trioFileName = "{}/{}/{}_trio/{}_trio_{}_phased_reverted.vcf".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId, chromosome)
-                #fileDict.add(individualFileName)
+                trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_phased_reverted.vcf"
                 fileDict[sampleFamilyId].append(trioFileName)
 
 #Concatenate individual chromosomes into one file for each trio
@@ -45,25 +46,24 @@ def concatMerge(trio):
     files = fileDict[trio]
 
     for index, file in enumerate(files):
-        #os.system("gzip -d {}.gz".format(file))
-        os.system("bgzip -f {} && tabix -fp vcf {}.gz".format(file, file))
-        files[index] = "{}.gz".format(file)
+        os.system(f"bgzip -f {file} && tabix -fp vcf {file}.gz")
+        files[index] = f"{file}.gz"
 
 
     fileName = re.findall(r"([\w\-\/_]+\/[\w\-_]+)_chr[A-Z0-9][A-Z0-9]?_phased_reverted\.vcf", files[0])[0]
-    outputName = "{}_phased_combined.vcf".format(fileName)
+    outputName = f"{fileName}_phased_combined.vcf"
     files = " ".join(files)
-    os.system("bcftools concat {} -o {}".format(files, outputName))
-    os.system("bgzip -f {} && tabix -fp vcf {}.gz".format(outputName, outputName))
+    os.system(f"bcftools concat {files} -o {outputName}")
+    os.system(f"bgzip -f {outputName} && tabix -fp vcf {outputName}.gz")
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=35) as executor:
     executor.map(concatMerge, fileDict)
 
 # Merge all phased, concatenated, trio files into one    
 concatFilesString = " ".join(concatFiles)
-outputName = "{}/{}_phased_samples.vcf".format(pathToFiles, diseaseName)
-os.system("bcftools merge -m both {} -o {}".format(concatFilesString, outputName))
-os.system("bgzip -f {} && tabix -fp vcf {}.gz".format(outputName, outputName))
+outputName = f"{pathToFiles}/{diseaseName}_phased_samples.vcf"
+os.system(f"bcftools merge -m both {concatFilesString} -o {outputName}")
+os.system(f"bgzip -f {outputName} && tabix -fp vcf {outputName}.gz")
 
 # Create a merged family file
 # create a proband dictionary where the key is the sampleId and the value is the familyId
@@ -119,12 +119,12 @@ with open(inputFile) as sampleFile:
                     paternal = key
                 else:
                     maternal = key
-            sampleDict[sampleId] = "{}\t{}\t{}\t{}\t{}\t2\n".format(sampleFamilyId, sampleId, paternal, maternal, gender)
+            sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t{paternal}\t{paternal}\t{gender}\t2\n"
         else:
-            sampleDict[sampleId] = "{}\t{}\t0\t0\t{}\t1\n".format(sampleFamilyId, sampleId, gender)
+            sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t0\t0\t{gender}\t1\n"
             
 # create a sample list in the order of the vcf file
-with gzip.open("{}/{}_phased_samples.vcf.gz".format(pathToFiles, diseaseName), "rt") as vcfFile:
+with gzip.open(f"{pathToFiles}/{diseaseName}_phased_samples.vcf.gz", "rt") as vcfFile:
     for line in vcfFile:
         if line.startswith("##"):
             continue
@@ -134,6 +134,11 @@ with gzip.open("{}/{}_phased_samples.vcf.gz".format(pathToFiles, diseaseName), "
             break
 
 # use the sample order in the list to output each sample in order as found in the vcf file
-with open("{}/{}.fam".format(pathToFiles, diseaseName), "w") as outputFile:
+with open(f"{pathToFiles}/{diseaseName}.fam", "w") as outputFile:
     for sample in sampleList:
         outputFile.write(sampleDict[sample])
+
+#Print message and how long the previous steps took
+timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
+timeElapsedHours = round(timeElapsedMinutes / 60, 2)
+print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')

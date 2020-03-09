@@ -1,12 +1,18 @@
 import re
 import os
 from sys import argv
+import time
 
-#Get disease name based on path
+#Keep track of when the script began
+startTime = time.time()
+char = '\n' + ('*' * 70) + '\n'
+
+# argv information
 pathToFiles = argv[1]
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
+# Get disease name based on path and set MED HIGH variables
 diseaseName = chromosome = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
 med = "'MED'"
 high = "'HIGH'"
@@ -52,3 +58,8 @@ os.system(f'gemini de_novo --columns "chrom, start, vcf_id, ref, alt, gene, impa
 --filter "(impact_severity = {high} or is_lof = 1) or (impact_severity = {med} and cadd_scaled >=20)" \
 {pathToFiles}/{diseaseName}_phased_samples_annotated_cadd.db \
 > {pathToFiles}/{diseaseName}_de_novo_impactHM_cadd20.tsv')
+
+#Output time information
+timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
+timeElapsedHours = round(timeElapsedMinutes / 60, 2)
+print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')

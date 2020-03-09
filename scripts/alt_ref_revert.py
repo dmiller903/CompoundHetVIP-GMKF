@@ -3,7 +3,13 @@ import gzip
 import re
 from sys import argv
 import os
+import time
 
+# Keep track of when the script began
+startTime = time.time()
+char = '\n' + ('*' * 70) + '\n'
+
+# Input information from argv
 inputFile = argv[1]
 pathToFiles = argv[2]
 if pathToFiles.endswith("/"):
@@ -27,9 +33,7 @@ with open(inputFile) as sampleFile:
             if sampleFamilyId not in fileDict:
                 fileDict[sampleFamilyId] = set()
                 for chromosome in chromosomes:
-                    #individualFileName = "{}/{}/{}/{}_{}".format(pathToFiles, sampleFamilyId, sampleId, sampleId, chromosome)
-                    trioFileName = "{}/{}/{}_trio/{}_trio_{}_phased.vcf".format(pathToFiles, sampleFamilyId, sampleFamilyId, sampleFamilyId, chromosome)
-                    #fileDict.add(individualFileName)
+                    trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_phased.vcf"
                     fileDict[sampleFamilyId].add(trioFileName)
 
 #Create a position dictionary based off of the legend.gz files
@@ -48,7 +52,7 @@ for file in glob.glob("/references/1000GP_Phase3/*legend.gz"):
             pos = lineList[posIndex]
             ref = lineList[refIndex]
             alt = lineList[altIndex]
-            siteStr = "{} {} {}".format(pos, ref, alt)
+            siteStr = f"{pos} {ref} {alt}"
             if chrom not in posDict:
                 posDict[chrom] = {siteStr}
             else:
@@ -64,8 +68,8 @@ for key, value in fileDict.items():
         total = 0
         mendelErrorCount = 0
         fileNameNoSuffix = re.findall(r"([\w\-\/_]+\/[\w\-_]+_chr[A-Z0-9][A-Z0-9]?[_\w]*_phased)\.vcf", file)[0]
-        outputName = "{}_reverted.vcf".format(fileNameNoSuffix)
-        mendelErrorFile = "{}.snp.me".format(fileNameNoSuffix)
+        outputName = f"{fileNameNoSuffix}_reverted.vcf"
+        mendelErrorFile = f"{fileNameNoSuffix}.snp.me"
         mendelErrorSet = set()
         # Create a set of any positions with mendel errors as given by the shapeit2 .snp.me files
         if os.path.exists(mendelErrorFile):
@@ -94,8 +98,8 @@ for key, value in fileDict.items():
                     pos = lineList[posIndex]
                     ref = lineList[refIndex]
                     alt = lineList[altIndex]
-                    rawStr = "{} {} {}".format(pos, ref, alt)
-                    flipStr = "{} {} {}".format(pos, alt, ref)
+                    rawStr = f"{pos} {ref} {alt}"
+                    flipStr = f"{pos} {alt} {ref}"
                     if rawStr in posDict[chrom] and pos not in mendelErrorSet:
                         output.write(line)
                         rawCount += 1
@@ -115,7 +119,12 @@ for key, value in fileDict.items():
             rawPercent = (rawCount / total) * 100
             flipPercent = (flipCount / total) * 100
             totalPercent = ((flipCount + rawCount) / total) * 100
-            print("For {}, chr{}, {} ({:.2f}%) of the sites were unchanged".format(key, chrom, rawCount, rawPercent))
-            print("For {}, chr{}, {} ({:.2f}%) of the sites were switched to match the reference panel".format(key, chrom, flipCount, flipPercent))
-            print("For {}, chr{}, {:.2f}% of the sites are now congruent with the reference panel\n".format(key, chrom, totalPercent))
-            print("For {}, chr{}, {} sites were removed due to mendel errors\n".format(key, chrom, mendelErrorCount))
+            print(f"For {key}, chr{chrom}, {rawCount} ({rawPercent:.2f}%) of the sites were unchanged")
+            print(f"For {key}, chr{chrom}, {flipCount} ({flipPercent:.2f}%) of the sites were switched to match the reference panel")
+            print(f"For {key}, chr{chrom}, {totalPercent:.2f}% of the sites are now congruent with the reference panel\n")
+            print(f"For {key}, chr{chrom}, {mendelErrorCount} sites were removed due to mendel errors\n")
+
+# Output message and time complete
+timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
+timeElapsedHours = round(timeElapsedMinutes / 60, 2)
+print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')

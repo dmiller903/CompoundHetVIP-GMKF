@@ -4,19 +4,19 @@ import os
 import time
 from sys import argv
 import concurrent.futures
-import subprocess
 
+# Keep track of when the script began
 startTime = time.time()
 char = '\n' + ('*' * 70) + '\n'
 
-#Combine Manifest and Biospecimen
+# Argv information 
 inputFile = argv[1]
 pathToFiles = argv[2]
 numCores = int(argv[3])
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
-#Create a list of proband files that need to have non-variant sites removed. Create a list of parent files that need sites removed
+# Create a list of proband files that need to have non-variant sites removed. Create a list of parent files that need sites removed
 probandList = []
 probandDict = {}
 parentList = []
@@ -38,7 +38,7 @@ with open(inputFile) as tsvFile:
                 parentList.append(sample[fileNameIndex])
                 parentDict[sample[fileNameIndex]] = [sample[familyIdIndex], sample[sampleIdIndex]]
 
-#Alter parent and proband lists to include only the available downloaded files
+# Alter parent and proband lists to include only the available downloaded files
 newProbandList = []
 newParentList = []
 for proband in probandList:
@@ -53,7 +53,7 @@ for proband in probandList:
             if parentDict[parentFile][0] == familyName:
                 newParentList.append(parentFile)
 
-#Filter each proband file, remove  variants-only sites, create a dictionary of variant-only sites
+# Filter each proband file, remove  variants-only sites, create a dictionary of variant-only sites
 positionDict = {}
 def filterVariantOnly(file):
     fileName = re.findall(r'(.+)\.g\.vcf\.gz', file)[0]
@@ -76,7 +76,6 @@ def filterVariantOnly(file):
                     familyDict[familyName][chrom] = {pos}
                 else:
                     familyDict[familyName][chrom].add(pos)
-    #os.system(f"rm {pathToFiles}/{file}")
     return(familyDict)
 
 for i in range(0, len(newProbandList), numCores):
@@ -86,10 +85,6 @@ for i in range(0, len(newProbandList), numCores):
         familyDict = executor.map(filterVariantOnly, probandListSlice)
         for dict in familyDict:
             positionDict.update(dict)
-
-timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
-timeElapsedHours = round(timeElapsedMinutes / 60, 2)
-print(f'Non-variant sites have been removed from probands. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours)')
 
 #Filter each parent file for sites that occur in proband of that family
 def filterParents(file):
@@ -113,7 +108,6 @@ def filterParents(file):
                         for i in range(int(pos), int(lineList[7].lstrip("END=")) + 1):
                             if str(i) in positionDict[familyName][chrom]:
                                 parsed.write(line.encode())
-    #os.system(f"rm {pathToFiles}/{file}")
 
 for i in range(0, len(newParentList), numCores):
     parentListSlice = newParentList[i:(i+numCores)]
@@ -139,6 +133,7 @@ for i in range(0, len(combinedList), numCores):
     with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
         executor.map(bgzipFiles, combinedListSlice)
 
+#Print message and how long the previous steps took
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
 timeElapsedHours = round(timeElapsedMinutes / 60, 2)
-print(f'Sites not corresponding to proband have been removed for each parent. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours)')
+print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours) {char}')
