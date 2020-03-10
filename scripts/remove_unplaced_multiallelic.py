@@ -14,6 +14,7 @@ inputFile = argv[1]
 pathToFiles = argv[2]
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
+num_cores = int(argv[3])
     
 # Create a list of file(s) that need to have unplaced and multiallelic sites removed
 fileSet = set()
@@ -59,7 +60,7 @@ def removeSites(file):
     os.system(f"bgzip -f {outputName}")
     return(f"{outputName}.gz")
 
-with concurrent.futures.ProcessPoolExecutor(max_workers=46) as executor:
+with concurrent.futures.ProcessPoolExecutor(max_workers=num_cores) as executor:
     fileName = executor.map(removeSites, fileSet)
     for file in fileName:
         filesToRemoveDuplicates.append(file)
@@ -107,7 +108,7 @@ def removeDuplicates(file):
                 duplicates.write(line)
 
     os.system(f"bgzip -f {outputName}")
-with concurrent.futures.ProcessPoolExecutor(max_workers=46) as executor:
+with concurrent.futures.ProcessPoolExecutor(max_workers=num_cores) as executor:
     executor.map(removeDuplicates, filesToRemoveDuplicates)
 
 # Output time it took to complete
