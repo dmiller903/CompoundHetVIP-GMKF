@@ -14,6 +14,9 @@ inputFile = argv[1]
 pathToFiles = argv[2]
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
+num_cores = int(argv[3])
+
+# Get disease name based on first part of path
 diseaseName = re.findall(r"[\w_\-]+", pathToFiles)[0]
 
 #Create a list of file(s) that need to have unplaced and multiallelic sites removed
@@ -56,7 +59,7 @@ def concatMerge(trio):
     os.system(f"bcftools concat {files} -o {outputName}")
     os.system(f"bgzip -f {outputName} && tabix -fp vcf {outputName}.gz")
 
-with concurrent.futures.ProcessPoolExecutor(max_workers=35) as executor:
+with concurrent.futures.ProcessPoolExecutor(max_workers=num_cores) as executor:
     executor.map(concatMerge, fileDict)
 
 # Merge all phased, concatenated, trio files into one    
