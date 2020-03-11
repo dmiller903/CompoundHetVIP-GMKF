@@ -2,6 +2,7 @@ import re
 import os
 from sys import argv
 import time
+import glob
 
 #Keep track of when the script began
 startTime = time.time()
