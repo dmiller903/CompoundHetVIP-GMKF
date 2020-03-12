@@ -15,10 +15,10 @@ if not os.path.exists("/usr/local/share/gemini/gemini_data/hg19.vista.enhancers.
 pathToFiles = argv[1]
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
-numCores = argv[2]
+numCores = int(argv[2])
 
 # Get disease name based on path
-diseaseName = chromosome = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
+diseaseName = re.findall(r"([\w\-_]+\/)", pathToFiles)[0]
 
 # Load annotated file into a GEMINI database
 os.system(f"gemini load -v {pathToFiles}/{diseaseName}_phased_samples_annotated.vcf \
