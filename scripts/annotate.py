@@ -17,7 +17,7 @@ if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
 # Get disease name based on path
-diseaseName = chromosome = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
+diseaseName = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
 
 # Annotate the vt trimmed file
 os.system(f"java -Xmx20g -jar /snpEff/snpEff.jar GRCh37.75 -v \
