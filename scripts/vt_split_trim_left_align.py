@@ -30,9 +30,9 @@ if pathToFiles.endswith("/"):
 diseaseName = chromosome = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
 
 # Use VT to split, trim and left align the phased samples.
-os.system(f"/root/miniconda2/bin/vt decompose -s {pathToFiles}/{diseaseName}_phased_samples.vcf.gz \
+os.system(f"/root/miniconda2/bin/vt decompose -s {pathToFiles}/{diseaseName}_phased_mcmc_samples.vcf.gz \
 | /root/miniconda2/bin/vt normalize -n -r /references/human_g1k_v37.fasta - > \
-{pathToFiles}/{diseaseName}_phased_samples_vt.vcf")
+{pathToFiles}/{diseaseName}_phased_mcmc_samples_vt.vcf")
 
 # Output message and time complete
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)

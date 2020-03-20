@@ -38,10 +38,10 @@ with open(inputFile) as sampleFile:
         if sampleFamilyId not in fileDict:
             fileDict[sampleFamilyId] = list()
             # concatFileName is what each trio will be named after each trio is combined into one trio
-            concatFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_phased_combined.vcf.gz"
+            concatFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_phased_mcmc_combined.vcf.gz"
             concatFiles.append(concatFileName)
             for chromosome in chromosomes:
-                trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_phased_reverted.vcf"
+                trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_phased_mcmc_reverted.vcf"
                 fileDict[sampleFamilyId].append(trioFileName)
 
 #Concatenate individual chromosomes into one file for each trio
@@ -53,8 +53,8 @@ def concatMerge(trio):
         files[index] = f"{file}.gz"
 
 
-    fileName = re.findall(r"([\w\-\/_]+\/[\w\-_]+)_chr[A-Z0-9][A-Z0-9]?_phased_reverted\.vcf", files[0])[0]
-    outputName = f"{fileName}_phased_combined.vcf"
+    fileName = re.findall(r"([\w\-\/_]+\/[\w\-_]+)_chr[A-Z0-9][A-Z0-9]?_phased_mcmc_reverted\.vcf", files[0])[0]
+    outputName = f"{fileName}_phased_mcmc_combined.vcf"
     files = " ".join(files)
     os.system(f"bcftools concat {files} -o {outputName}")
     os.system(f"bgzip -f {outputName} && tabix -fp vcf {outputName}.gz")
@@ -64,7 +64,7 @@ with concurrent.futures.ProcessPoolExecutor(max_workers=num_cores) as executor:
 
 # Merge all phased, concatenated, trio files into one    
 concatFilesString = " ".join(concatFiles)
-outputName = f"{pathToFiles}/{diseaseName}_phased_samples.vcf"
+outputName = f"{pathToFiles}/{diseaseName}_phased_mcmc_samples.vcf"
 os.system(f"bcftools merge -m both {concatFilesString} -o {outputName}")
 os.system(f"bgzip -f {outputName} && tabix -fp vcf {outputName}.gz")
 
@@ -127,7 +127,7 @@ with open(inputFile) as sampleFile:
             sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t0\t0\t{gender}\t1\n"
             
 # create a sample list in the order of the vcf file
-with gzip.open(f"{pathToFiles}/{diseaseName}_phased_samples.vcf.gz", "rt") as vcfFile:
+with gzip.open(f"{pathToFiles}/{diseaseName}_phased_mcmc_samples.vcf.gz", "rt") as vcfFile:
     for line in vcfFile:
         if line.startswith("##"):
             continue

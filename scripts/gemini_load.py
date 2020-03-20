@@ -18,11 +18,11 @@ if pathToFiles.endswith("/"):
 numCores = int(argv[2])
 
 # Get disease name based on path
-diseaseName = re.findall(r"([\w\-_]+\/)", pathToFiles)[0]
+diseaseName = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
 
 # Load annotated file into a GEMINI database
-os.system(f"gemini load -v {pathToFiles}/{diseaseName}_phased_samples_annotated.vcf \
--p {pathToFiles}/{diseaseName}.fam -t snpEff --cores {numCores} {pathToFiles}/{diseaseName}_phased_samples_annotated_cadd.db")
+os.system(f"gemini load -v {pathToFiles}/{diseaseName}_phased_mcmc_samples_annotated.vcf \
+-p {pathToFiles}/{diseaseName}.fam -t snpEff --cores {numCores} {pathToFiles}/{diseaseName}_phased_mcmc_samples_annotated_cadd.db")
 
 # Print output information
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
