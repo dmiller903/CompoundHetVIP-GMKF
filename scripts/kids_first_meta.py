@@ -24,10 +24,10 @@ outputDict = {}
 with open(manifestFile) as manifest:
     manifestColumnNames = manifest.readline()
     manifestColumnNames = manifestColumnNames.rstrip().split("\t")
-    # Information needed from this file are the "File Name", "Family Id", "Aliquot External ID", and "Proband" (Yes, or No).
+    # Information needed from this file are the "File Name", "Family Id", "Sample External ID", and "Proband" (Yes, or No).
     fileNameIndex = manifestColumnNames.index("File Name")
     familyIdIndex = manifestColumnNames.index("Family Id")
-    manifestExternalIdIndex = manifestColumnNames.index("Aliquot External ID")
+    manifestSampleIdIndex = manifestColumnNames.index("Sample External ID")
     probandIndex = manifestColumnNames.index("Proband")
     
     # Add to the initial dictionary where the key is the "Aliquot External ID" as this is common across all input files.
@@ -36,27 +36,27 @@ with open(manifestFile) as manifest:
     for sample in manifest:
         sample = sample.rstrip().split("\t")
         if sample[probandIndex] == "Yes" or sample[probandIndex] == "No":
-            externalID = sample[manifestExternalIdIndex]
+            externalID = sample[manifestSampleIdIndex]
             if "Schiffman" not in externalID:
-                outputDict[sample[manifestExternalIdIndex]] = [sample[fileNameIndex], sample[familyIdIndex], sample[probandIndex]]
+                outputDict[sample[manifestSampleIdIndex]] = [sample[fileNameIndex], sample[familyIdIndex], sample[probandIndex]]
             else:
                 externalID = re.findall(r"Schiffman\-\w+", externalID)[0]
                 outputDict[externalID] = [sample[fileNameIndex], sample[familyIdIndex], sample[probandIndex]]
         # Sometimes "Yes" or "No" is not listed under "Proband". Therefore, this else statement will check NCBI for affected
         # status based on "Aliquot External ID"
         else:
-            getAffectedStatus = str(url.urlopen(f"https://www.ncbi.nlm.nih.gov/biosample/?term={sample[manifestExternalIdIndex]}").read())
+            getAffectedStatus = str(url.urlopen(f"https://www.ncbi.nlm.nih.gov/biosample/?term={sample[manifestSampleIdIndex]}").read())
             if "subject is affected</th><td>Yes" in getAffectedStatus:
-                outputDict[sample[manifestExternalIdIndex]] = [sample[fileNameIndex], sample[familyIdIndex], "Yes"]
+                outputDict[sample[manifestSampleIdIndex]] = [sample[fileNameIndex], sample[familyIdIndex], "Yes"]
             elif "subject is affected</th><td>No" in getAffectedStatus:
-                outputDict[sample[manifestExternalIdIndex]] = [sample[fileNameIndex], sample[familyIdIndex], "No"]
+                outputDict[sample[manifestSampleIdIndex]] = [sample[fileNameIndex], sample[familyIdIndex], "No"]
 
 # Obtain information from the biospecimen file and add to initial dictionary
 with open(biospecimenFile) as biospecimen:
     biospecimenColumnNames = biospecimen.readline()
     biospecimenColumnNames = biospecimenColumnNames.rstrip().split("\t")
     # Information needed from this file are the "External Aliquot Id", and "Biospecimens Id"
-    biospecimenExternalIdIndex = biospecimenColumnNames.index("External Aliquot Id")
+    biospecimenExternalIdIndex = biospecimenColumnNames.index("External Sample Id")
     sampleIdIndex = biospecimenColumnNames.index("Biospecimens Id")
 
     # Use the patient "External Aliquot Id" as the key to append the "Biospecimens Id" to the value list.
@@ -84,8 +84,8 @@ with open(clinicalFile) as clinical:
     # Use the patient "External Id" as the key to append the "Biospecimens Id" to the value list.
     for line in clinical:
         line = line.rstrip().split("\t")
-        externalID = sample[manifestExternalIdIndex]
-        if "Schiffman" not in externalID:
+        externalID = line[clinicalExternalIdIndex]
+        if "Schiffman" not in externalID and externalID in outputDict:
             outputDict[line[clinicalExternalIdIndex]].append(line[genderIndex])
         else:
             try:
@@ -120,6 +120,7 @@ with open(outputFile, 'w') as output:
             output.write(f"{item[0]}\t{item[1]}\t{item[3]}\t{item[2]}\t1\n")
 
 # Output message and time complete
+print(f"{char}There are {len(trioList) / 3} trios.{char}")
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
 timeElapsedHours = round(timeElapsedMinutes / 60, 2)
 print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')
