@@ -4,6 +4,7 @@ import os
 import time
 from sys import argv
 import concurrent.futures
+import math
 
 # Keep track of when the script began
 startTime = time.time()
@@ -17,10 +18,8 @@ if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
 # Create a list of proband files that need to have non-variant sites removed. Create a list of parent files that need sites removed
-probandList = []
 probandDict = {}
-parentList = []
-parentDict = {}
+familyDict = {}
 with open(inputFile) as tsvFile:
     header = tsvFile.readline()
     header = header.rstrip().split("\t")
@@ -32,38 +31,32 @@ with open(inputFile) as tsvFile:
         sample = sample.rstrip().split("\t")
         if os.path.exists(f"{pathToFiles}/{sample[fileNameIndex]}"):
             if sample[probandIndex] == "Yes":
-                probandList.append(sample[fileNameIndex])
-                probandDict[sample[fileNameIndex]] = [sample[familyIdIndex], sample[sampleIdIndex]]
+                probandDict[sample[familyIdIndex]] = [sample[sampleIdIndex], sample[fileNameIndex]]
+                if sample[familyIdIndex] not in familyDict:
+                    familyDict[sample[familyIdIndex]] = [[sample[sampleIdIndex], sample[fileNameIndex]]]
+                else:
+                    familyDict[sample[familyIdIndex]].append([sample[sampleIdIndex], sample[fileNameIndex]])
             else:
-                parentList.append(sample[fileNameIndex])
-                parentDict[sample[fileNameIndex]] = [sample[familyIdIndex], sample[sampleIdIndex]]
+                if sample[familyIdIndex] not in familyDict:
+                    familyDict[sample[familyIdIndex]] = [[sample[sampleIdIndex], sample[fileNameIndex]]]
+                else:
+                    familyDict[sample[familyIdIndex]].append([sample[sampleIdIndex], sample[fileNameIndex]])
 
-# Alter parent and proband lists to include only the available downloaded files
-newProbandList = []
-newParentList = []
-for proband in probandList:
-    familyName = probandDict[proband][0]
-    parentFilesAvailable = 0
-    for parentFile in parentDict:
-        if parentDict[parentFile][0] == familyName:
-            parentFilesAvailable += 1
-    if parentFilesAvailable == 2:
-        newProbandList.append(proband)
-        for parentFile in parentDict:
-            if parentDict[parentFile][0] == familyName:
-                newParentList.append(parentFile)
+# Create new familyDict, called trioDict, to include only the files with trios
+trioDict = {}
+familyList = []
+for key, value in familyDict.items():
+    if len(value) == 3:
+        trioDict[key] = value
+        familyList.append(key)
 
 # Filter each proband file, remove  variants-only sites, create a dictionary of variant-only sites
-positionDict = {}
-def filterVariantOnly(file):
-    fileName = re.findall(r'(.+)\.g\.vcf\.gz', file)[0]
-    familyName = probandDict[file][0]
-    sampleName = probandDict[file][1]
-    os.system(f"mkdir {pathToFiles}/{familyName}")
-    os.system(f"mkdir {pathToFiles}/{familyName}/{sampleName}")
-    familyDict = {familyName: {}}
-    outputName = f"{pathToFiles}/{familyName}/{sampleName}/{sampleName}_parsed.vcf"
-    with gzip.open(f"{pathToFiles}/{file}", 'rt') as gVCF, gzip.open(outputName, 'wb') as parsed:
+def filterVariantOnly(familyID, probandID, fileName):
+    os.system(f"mkdir {pathToFiles}/{familyID}")
+    os.system(f"mkdir {pathToFiles}/{familyID}/{probandID}")
+    outputName = f"{pathToFiles}/{familyID}/{probandID}/{probandID}_parsed.vcf"
+    positionDict = {}
+    with gzip.open(f"{pathToFiles}/{fileName}", 'rt') as gVCF, gzip.open(outputName, 'wb') as parsed:
         for line in gVCF:
             if line.startswith('#'):
                 parsed.write(line.encode())
@@ -72,28 +65,20 @@ def filterVariantOnly(file):
                 line = line.split("\t")
                 chrom = line[0]
                 pos = line[1]
-                if chrom not in familyDict[familyName]:
-                    familyDict[familyName][chrom] = {pos}
+                if chrom not in positionDict:
+                    positionDict[chrom] = {pos}
                 else:
-                    familyDict[familyName][chrom].add(pos)
-    return(familyDict)
-
-for i in range(0, len(newProbandList), numCores):
-    probandListSlice = newProbandList[i:(i+numCores)]
-    with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
-        executor.map(filterVariantOnly, probandListSlice)
-        familyDict = executor.map(filterVariantOnly, probandListSlice)
-        for dict in familyDict:
-            positionDict.update(dict)
+                    positionDict[chrom].add(pos)
+    finalName = f"{outputName}.gz"
+    os.system(f"zcat {outputName} | /root/miniconda2/bin/bgzip > {finalName}")
+    os.system(f"rm {outputName}")
+    return(positionDict)
 
 #Filter each parent file for sites that occur in proband of that family
-def filterParents(file):
-    fileName = re.findall(r'(.+)\.g\.vcf\.gz', file)[0]
-    familyName = parentDict[file][0]
-    sampleName = parentDict[file][1]
-    os.system(f"mkdir {pathToFiles}/{familyName}/{sampleName}")
-    outputName = f"{pathToFiles}/{familyName}/{sampleName}/{sampleName}_parsed.vcf"
-    with gzip.open(f"{pathToFiles}/{file}", 'rt') as gVCF, gzip.open(outputName, 'wb') as parsed:
+def filterParents(familyID, parentID, fileName, positionDict):
+    os.system(f"mkdir {pathToFiles}/{familyID}/{parentID}")
+    outputName = f"{pathToFiles}/{familyID}/{parentID}/{parentID}_parsed.vcf"
+    with gzip.open(f"{pathToFiles}/{fileName}", 'rt') as gVCF, gzip.open(outputName, 'wb') as parsed:
         for line in gVCF:
             if line.startswith("#"):
                 parsed.write(line.encode())
@@ -101,37 +86,37 @@ def filterParents(file):
                 lineList = line.split("\t")
                 chrom = lineList[0]
                 pos = lineList[1]
-                if pos in positionDict[familyName][chrom]:
+                if pos in positionDict[chrom]:
                     parsed.write(line.encode())
                 else:
                     if "END" in line:
                         for i in range(int(pos), int(lineList[7].lstrip("END=")) + 1):
-                            if str(i) in positionDict[familyName][chrom]:
+                            if str(i) in positionDict[chrom]:
                                 parsed.write(line.encode())
+    finalName = f"{outputName}.gz"
+    os.system(f"zcat {outputName} | /root/miniconda2/bin/bgzip > {finalName}")
+    os.system(f"rm {outputName}")
 
-for i in range(0, len(newParentList), numCores):
-    parentListSlice = newParentList[i:(i+numCores)]
+# Iterate through familyList and remove variant sites from proband first, while creating a position dictionary. 
+# Then use the position dictionary to iterate through each parent file and keep positions that are in common with proband.
+def filterFiles(familyID):
+    for sample in trioDict[familyID]:
+        if sample == probandDict[familyID]:
+            probandID = sample[0]
+            fileName = sample[1]
+            positionDict = filterVariantOnly(familyID, probandID, fileName)
+        
+    for sample in trioDict[familyID]:
+        if sample != probandDict[familyID]:
+            parentID = sample[0]
+            fileName = sample[1]
+            filterParents(familyID, parentID, fileName, positionDict)
+    
+# Use concurrent.futures to filter through multiple trios at a time using the filterFiles function
+for i in range(0, len(familyList), numCores):
+    familyListSlice = familyList[i:(i+numCores)]
     with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
-        executor.map(filterParents, parentListSlice)
-
-#bgzip all parsed files
-combinedList = newProbandList + newParentList
-probandDict.update(parentDict)
-
-def bgzipFiles(file):
-    fileName = re.findall(r'(.+)\.g\.vcf\.gz', file)[0]
-    familyName = probandDict[file][0]
-    sampleName = probandDict[file][1]
-
-    parsedName = f"{pathToFiles}/{familyName}/{sampleName}/{sampleName}_parsed.vcf"
-    outputName = f"{parsedName}.gz"
-    os.system(f"zcat {parsedName} | /root/miniconda2/bin/bgzip > {outputName}")
-    os.system(f"rm {parsedName}")
-
-for i in range(0, len(combinedList), numCores):
-    combinedListSlice = combinedList[i:(i+numCores)]
-    with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
-        executor.map(bgzipFiles, combinedListSlice)
+        executor.map(filterFiles, familyListSlice)
 
 #Print message and how long the previous steps took
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
