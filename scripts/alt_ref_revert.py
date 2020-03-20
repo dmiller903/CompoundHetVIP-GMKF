@@ -4,6 +4,7 @@ import re
 from sys import argv
 import os
 import time
+import concurrent.futures
 
 # Keep track of when the script began
 startTime = time.time()
@@ -33,7 +34,7 @@ with open(inputFile) as sampleFile:
             if sampleFamilyId not in fileDict:
                 fileDict[sampleFamilyId] = set()
                 for chromosome in chromosomes:
-                    trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_phased.vcf"
+                    trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_phased_mcmc.vcf"
                     fileDict[sampleFamilyId].add(trioFileName)
 
 #Create a position dictionary based off of the legend.gz files
@@ -60,69 +61,76 @@ for file in glob.glob("/references/1000GP_Phase3/*legend.gz"):
 
 print("Dictionary Created\n")
 
-#Create new files with alt/ref flipped and remove sites with mendel errors
-for key, value in fileDict.items():
-    for file in value:
-        rawCount = 0
-        flipCount = 0
-        total = 0
-        mendelErrorCount = 0
-        fileNameNoSuffix = re.findall(r"([\w\-\/_]+\/[\w\-_]+_chr[A-Z0-9][A-Z0-9]?[_\w]*_phased)\.vcf", file)[0]
-        outputName = f"{fileNameNoSuffix}_reverted.vcf"
-        mendelErrorFile = f"{fileNameNoSuffix}.snp.me"
-        mendelErrorSet = set()
-        # Create a set of any positions with mendel errors as given by the shapeit2 .snp.me files
-        if os.path.exists(mendelErrorFile):
-            with open(mendelErrorFile) as mendelFile:
-                for line in mendelFile:
-                    lineSplit = line.split("\t")
-                    mendelError = lineSplit[2]
-                    pos = lineSplit[1]
-                    if mendelError == "1":
-                        mendelErrorSet.add(pos)
+# Function to create new files with alt/ref flipped and remove sites with mendel errors
+def altRefRevert(file):
+    fileNameNoSuffix = re.findall(r"([\w\-\/_]+\/[\w\-_]+_chr[A-Z0-9][A-Z0-9]?[_\w]*_phased_mcmc)\.vcf", file)[0]
+    outputName = f"{fileNameNoSuffix}_reverted.vcf"
 
-        with open(file, 'rt') as sample, open(outputName, 'w') as output:
-            for line in sample:
-                if "##" in line:
+    # Create a set of any positions with mendel errors as given by the shapeit2 .snp.me files
+    mendelErrorFile = f"{fileNameNoSuffix}.snp.me"
+    mendelErrorSet = set()
+    if os.path.exists(mendelErrorFile):
+        with open(mendelErrorFile) as mendelFile:
+            for line in mendelFile:
+                lineSplit = line.split("\t")
+                mendelError = lineSplit[2]
+                pos = lineSplit[1]
+                if mendelError == "1":
+                    mendelErrorSet.add(pos)
+
+    # Create new files with alt/ref flipped and remove sites with mendel errors
+    rawCount = 0
+    flipCount = 0
+    total = 0
+    mendelErrorCount = 0        
+    with open(file, 'rt') as sample, open(outputName, 'w') as output:
+        for line in sample:
+            if "##" in line:
+                output.write(line)
+            elif line.startswith("#CHROM"):
+                header = line.split("\t")
+                chromIndex = header.index("#CHROM")
+                posIndex = header.index("POS")
+                refIndex = header.index("REF")
+                altIndex = header.index("ALT")
+                output.write(line)
+            else:
+                lineList = line.split("\t")
+                chrom = lineList[chromIndex]
+                pos = lineList[posIndex]
+                ref = lineList[refIndex]
+                alt = lineList[altIndex]
+                rawStr = f"{pos} {ref} {alt}"
+                flipStr = f"{pos} {alt} {ref}"
+                if rawStr in posDict[chrom] and pos not in mendelErrorSet:
                     output.write(line)
-                elif line.startswith("#CHROM"):
-                    header = line.split("\t")
-                    chromIndex = header.index("#CHROM")
-                    posIndex = header.index("POS")
-                    refIndex = header.index("REF")
-                    altIndex = header.index("ALT")
+                    rawCount += 1
+                    total += 1
+                elif flipStr in posDict[chrom] and pos not in mendelErrorSet:
+                    lineList[refIndex] = alt
+                    lineList[altIndex] = ref
+                    line = "\t".join(lineList)
+                    line = line.replace("0|1", "b|a").replace("1|0", "a|b").replace("1|1", "a|a").replace("0|0", "b|b")
+                    line = line.replace("b|a", "1|0").replace("a|b", "0|1").replace("a|a", "0|0").replace("b|b", "1|1")
                     output.write(line)
+                    flipCount += 1
+                    total += 1
                 else:
-                    lineList = line.split("\t")
-                    chrom = lineList[chromIndex]
-                    pos = lineList[posIndex]
-                    ref = lineList[refIndex]
-                    alt = lineList[altIndex]
-                    rawStr = f"{pos} {ref} {alt}"
-                    flipStr = f"{pos} {alt} {ref}"
-                    if rawStr in posDict[chrom] and pos not in mendelErrorSet:
-                        output.write(line)
-                        rawCount += 1
-                        total += 1
-                    elif flipStr in posDict[chrom] and pos not in mendelErrorSet:
-                        lineList[refIndex] = alt
-                        lineList[altIndex] = ref
-                        line = "\t".join(lineList)
-                        line = line.replace("0|1", "b|a").replace("1|0", "a|b").replace("1|1", "a|a").replace("0|0", "b|b")
-                        line = line.replace("b|a", "1|0").replace("a|b", "0|1").replace("a|a", "0|0").replace("b|b", "1|1")
-                        output.write(line)
-                        flipCount += 1
-                        total += 1
-                    else:
-                        total += 1
-                        mendelErrorCount += 1
-            rawPercent = (rawCount / total) * 100
-            flipPercent = (flipCount / total) * 100
-            totalPercent = ((flipCount + rawCount) / total) * 100
-            print(f"For {key}, chr{chrom}, {rawCount} ({rawPercent:.2f}%) of the sites were unchanged")
-            print(f"For {key}, chr{chrom}, {flipCount} ({flipPercent:.2f}%) of the sites were switched to match the reference panel")
-            print(f"For {key}, chr{chrom}, {totalPercent:.2f}% of the sites are now congruent with the reference panel\n")
-            print(f"For {key}, chr{chrom}, {mendelErrorCount} sites were removed due to mendel errors\n")
+                    total += 1
+                    mendelErrorCount += 1
+        rawPercent = (rawCount / total) * 100
+        flipPercent = (flipCount / total) * 100
+        totalPercent = ((flipCount + rawCount) / total) * 100
+        print(f"For {key}, chr{chrom}, {rawCount} ({rawPercent:.2f}%) of the sites were unchanged")
+        print(f"For {key}, chr{chrom}, {flipCount} ({flipPercent:.2f}%) of the sites were switched to match the reference panel")
+        print(f"For {key}, chr{chrom}, {mendelErrorCount} sites were removed due to mendel errors\n")
+        print(f"For {key}, chr{chrom}, {totalPercent:.2f}% of the sites were kept and are now congruent with the reference panel\n")
+
+# Create new files with alt/ref flipped and remove sites with mendel errors using fileDict where key is familyID and value is list of files
+# for members of that family. 
+for trio, trioFiles in fileDict.items():
+    with concurrent.futures.ProcessPoolExecutor(max_workers=23) as executor:
+        executor.map(altRefRevert, trioFiles)
 
 # Output message and time complete
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
