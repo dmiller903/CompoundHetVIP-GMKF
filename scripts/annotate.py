@@ -21,8 +21,8 @@ diseaseName = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
 
 # Annotate the vt trimmed file
 os.system(f"java -Xmx20g -jar /snpEff/snpEff.jar GRCh37.75 -v \
-{pathToFiles}/{diseaseName}_phased_samples_vt.vcf > \
-{pathToFiles}/{diseaseName}_phased_samples_annotated.vcf")
+{pathToFiles}/{diseaseName}_phased_mcmc_samples_vt.vcf > \
+{pathToFiles}/{diseaseName}_phased_mcmc_samples_annotated.vcf")
 
 # Print output information
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
