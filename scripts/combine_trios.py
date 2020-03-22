@@ -4,6 +4,7 @@ import os
 import time
 from sys import argv
 import concurrent.futures
+import glob
 
 # Keep track of when the script began
 startTime = time.time()
@@ -17,7 +18,7 @@ if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
 # Download reference files if needed
-if not os.path.exists("/references/Homo_sapiens_assembly38.fasta") and isGvcf == "y":
+if not os.path.exists("/references/Homo_sapiens_assembly38.fasta"):
     os.system("wget --no-check-certificate \
     https://files.osf.io/v1/resources/3znuj/providers/osfstorage/5d9f54d2a7bc73000ee99fd6/?zip= -O /tmp/references.zip \
     && unzip /tmp/references.zip -d /tmp/references \
@@ -31,6 +32,7 @@ if not os.path.exists("/references/Homo_sapiens_assembly38.fasta") and isGvcf ==
 
 # Create a dictionary of files that need to be combined into one vcf file
 fileDict = {}
+familyList = []
 with open(inputFile) as sampleFile:
     header = sampleFile.readline()
     headerList = header.rstrip().split("\t")
@@ -39,13 +41,13 @@ with open(inputFile) as sampleFile:
     sampleIdIndex = headerList.index("sample_id")
     for sample in sampleFile:
         sampleData = sample.rstrip("\n").split("\t")
-        print(sampleData)
         sampleId = sampleData[sampleIdIndex]
         sampleFamilyId = sampleData[familyIdIndex]
         actualFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleId}/{sampleId}_parsed.vcf.gz"
-        if sampleFamilyId not in fileDict:
+        if sampleFamilyId not in fileDict and os.path.exists(f"{pathToFiles}/{sampleFamilyId}"):
             fileDict[sampleFamilyId] = [actualFileName]
-        else:
+            familyList.append(sampleFamilyId)
+        elif sampleFamilyId in fileDict and os.path.exists(f"{pathToFiles}/{sampleFamilyId}"):
             fileDict[sampleFamilyId].append(actualFileName)
 
 probandDict = {}
@@ -113,7 +115,6 @@ with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
     executor.map(createFamFiles, probandDict)
 
 # Use GATK to combine all trios into one vcf
-filesToGenotype = []
 def combineTrios(trio):
     files = fileDict[trio]
     fileString = ""
@@ -123,12 +124,11 @@ def combineTrios(trio):
         fileString += f"-V {file} "
         os.system(f"/root/miniconda2/bin/gatk IndexFeatureFile -F {file}")
     os.system(f"/root/miniconda2/bin/gatk CombineGVCFs -R /references/Homo_sapiens_assembly38.fasta {fileString} -O {outputName}")
-    return(outputName)
 
-with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
-    outputName = executor.map(combineTrios, fileDict)
-    for file in outputName:
-        filesToGenotype.append(file)
+for i in range(0, len(familyList), numCores):
+    familyListSlice = familyList[i:(i+numCores)]
+    with concurrent.futures.ProcessPoolExecutor(max_workers=numCores) as executor:
+        executor.map(combineTrios, familyListSlice)
 
 # Print message and how long the previous steps took
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
