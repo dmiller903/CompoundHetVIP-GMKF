@@ -34,7 +34,7 @@ if not os.path.exists("/references/hg38ToHg19.over.chain"):
     os.system("chmod 777 /references/*")
 
 # Create a list of file(s) to be liftedover
-fileSet = set()
+fileList = []
 with open(inputFile) as sampleFile:
     header = sampleFile.readline()
     headerList = header.rstrip().split("\t")
@@ -46,7 +46,8 @@ with open(inputFile) as sampleFile:
         sampleFamilyId = sampleData[familyIdIndex]
         sampleId = sampleData[sampleIdIndex]
         trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio.vcf.gz"
-        fileSet.add(trioFileName)
+        if os.path.exists(trioFileName):
+            fileList.append(trioFileName)
 
 # Liftover file(s)
 def liftoverFiles(file):
@@ -56,8 +57,10 @@ def liftoverFiles(file):
     os.system(f"java -jar /root/miniconda2/share/picard-2.21.1-0/picard.jar LiftoverVcf I={fileFolder}/{fileName}_genotyped.vcf.gz O={fileFolder}/{fileName}_liftover.vcf.gz \
     CHAIN=/references/hg38ToHg19.over.chain R=/references/human_g1k_v37_modified.fasta REJECT={fileFolder}/{fileName}_rejected_variants.vcf")
 
-with concurrent.futures.ProcessPoolExecutor(max_workers=24) as executor:
-    executor.map(liftoverFiles, fileSet)
+for i in range(0, len(fileList), 24):
+    fileListSlice = fileList[i:(i+24)]
+    with concurrent.futures.ProcessPoolExecutor(max_workers=24) as executor:
+        executor.map(liftoverFiles, fileListSlice)
 
 # Output message and time complete
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
