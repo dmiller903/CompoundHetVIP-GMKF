@@ -30,7 +30,8 @@ with open(inputFile) as sampleFile:
         sampleFamilyId = sampleData[familyIdIndex]
         sampleId = sampleData[sampleIdIndex]
         trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_liftover_parsed.vcf.gz"
-        fileSet.add(trioFileName)
+        if os.path.exists(f"{trioFileName}"):
+            fileSet.add(trioFileName)
 
 plinkFileSet = set()
 # Separate combined trio files and individual participant files by chromosome
@@ -48,7 +49,7 @@ def separateByChr(file):
                 header = header + line
             elif not line.startswith("#") and line.split("\t")[0] not in chromosomeSet:
                 chromosomeNumber = line.split("\t")[0]
-                os.system(f"rm {outputName}{chromosomeNumber}.*")
+                #os.system(f"rm {outputName}{chromosomeNumber}.*")
                 with open(f"{outputName}{chromosomeNumber}.vcf", "w") as chromosome:
                     chromosome.write(header)
                     chromosome.write(line)

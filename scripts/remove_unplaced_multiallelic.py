@@ -29,9 +29,9 @@ with open(inputFile) as sampleFile:
         fileName = sampleData[fileNameIndex]
         sampleFamilyId = sampleData[familyIdIndex]
         sampleId = sampleData[sampleIdIndex]
-        individualFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleId}/{sampleId}_liftover.vcf.gz"
         trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_liftover.vcf.gz"
-        fileSet.add(trioFileName)
+        if os.path.exists(f"{trioFileName}"):
+            fileSet.add(trioFileName)
 
 # Set of Chromosomes to Keep
 chrToKeep = {"chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", "chr13",\
