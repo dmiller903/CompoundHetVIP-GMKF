@@ -72,6 +72,7 @@ def filterVariantOnly(familyID, probandID, fileName):
     finalName = f"{outputName}.gz"
     os.system(f"zcat {outputName} | /root/miniconda2/bin/bgzip > {finalName}")
     os.system(f"rm {outputName}")
+    os.system(f"rm {pathToFiles}/{fileName}") # remove raw input file
     return(positionDict)
 
 #Filter each parent file for sites that occur in proband of that family
@@ -96,6 +97,7 @@ def filterParents(familyID, parentID, fileName, positionDict):
     finalName = f"{outputName}.gz"
     os.system(f"zcat {outputName} | /root/miniconda2/bin/bgzip > {finalName}")
     os.system(f"rm {outputName}")
+    os.system(f"rm {pathToFiles}/{fileName}") # remove raw input file
 
 # Iterate through familyList and remove variant sites from proband first, while creating a position dictionary. 
 # Then use the position dictionary to iterate through each parent file and keep positions that are in common with proband.
