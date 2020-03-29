@@ -14,7 +14,8 @@ char = '\n' + ('*' * 70) + '\n'
 # Input/output files
 manifestFile = argv[1]
 clinicalFile = argv[2]
-outputFile = argv[3]
+biospecimenFile = argv[3]
+outputFile = argv[4]
 
 # Dictionary to store needed information in
 outputDict = {}
@@ -33,8 +34,10 @@ with open(manifestFile) as manifest:
     # Add to the initial dictionary where the key is the "Participants ID" as this is common across all input files.
     # The value is a list where value[0] the "File Name", value[1] is "Participants ID, value[2] is "Family Id", 
     # and value[3] is "Proband" as "Yes" or "No"
+    participantID_externalID = {}
     for sample in manifest:
         sample = sample.rstrip().split("\t")
+        participantID_externalID[sample[manifestSampleIdIndex]] = sample[externalIdIndex]
         if sample[probandIndex] == "Yes" or sample[probandIndex] == "No":
             outputDict[sample[manifestSampleIdIndex]] = [sample[fileNameIndex], sample[manifestSampleIdIndex], sample[familyIdIndex], sample[probandIndex]]
         # Sometimes "Yes" or "No" is not listed under "Proband". Therefore, this else statement will check NCBI for affected
@@ -63,6 +66,20 @@ with open(clinicalFile) as clinical:
         line = line.rstrip().split("\t")
         outputDict[line[clinicalParticipantIdIndex]].append(line[genderIndex])
 
+# Obtain biospecimen ID
+biospecimenDict = {}
+with open(biospecimenFile) as biospecimen:
+    headerList = biospecimen.readline().rstrip("\n").split("\t")
+    print(headerList)
+    biospecimenIDIndex = headerList.index("Biospecimens Id")
+    externalSampleIDIndex = headerList.index("External Sample Id")
+    for line in biospecimen:
+        lineList = line.rstrip("\n").split("\t")
+        if lineList[externalSampleIDIndex] in participantID_externalID.values():
+            biospecimenDict[lineList[externalSampleIDIndex]] = lineList[biospecimenIDIndex]
+print(biospecimenDict)
+
+
 # Create list of samples where only trios are included
 familyDict = {}
 for key, value in outputDict.items():
@@ -82,10 +99,12 @@ for key, value in familyDict.items():
 with open(outputFile, 'w') as output:
     output.write("file_name\tfamily_id\tsample_id\tproband\tsex\n")
     for item in trioList:
+        externalID = participantID_externalID[item[1]]
+        biospecimenID = biospecimenDict[externalID]
         if item[-1] == "Female":
-            output.write(f"{item[0]}\t{item[2]}\t{item[1]}\t{item[3]}\t2\n")
+            output.write(f"{item[0]}\t{item[2]}\t{biospecimenID}\t{item[3]}\t2\n")
         else:
-            output.write(f"{item[0]}\t{item[2]}\t{item[1]}\t{item[3]}\t1\n")
+            output.write(f"{item[0]}\t{item[2]}\t{biospecimenID}\t{item[3]}\t1\n")
 
 # Output message and time complete
 print(f"{char}There are {len(trioList) / 3} trios.{char}")
