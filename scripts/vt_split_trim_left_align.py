@@ -27,7 +27,7 @@ if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
 
 #Get disease name based on path
-diseaseName = chromosome = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
+diseaseName = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
 
 # Use VT to split, trim and left align the phased samples.
 os.system(f"/root/miniconda2/bin/vt decompose -s {pathToFiles}/{diseaseName}_phased_mcmc_samples.vcf.gz \
