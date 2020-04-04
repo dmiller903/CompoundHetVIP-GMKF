@@ -66,9 +66,8 @@ print("Dictionary Created\n")
 
 # Function to create new files with alt/ref flipped and remove sites with mendel errors
 def altRefRevert(file):
-    fileNameNoSuffix = re.findall(r"([\w\-\/_]+\/[\w\-_]+_chr[A-Z0-9][A-Z0-9]?[_\w]*_phased_mcmc)\.vcf", file)[0]
+    fileNameNoSuffix = re.findall(r"(.+_chr[A-Z0-9][A-Z0-9]?_phased_mcmc)\.vcf", file)[0]
     outputName = f"{fileNameNoSuffix}_reverted.vcf"
-
     # Create a set of any positions with mendel errors as given by the shapeit2 .snp.me files
     mendelErrorFile = f"{fileNameNoSuffix}.snp.me"
     mendelErrorSet = set()
@@ -81,12 +80,12 @@ def altRefRevert(file):
                 if mendelError == "1":
                     mendelErrorSet.add(pos)
 
-    # Create new files with alt/ref flipped and remove sites with mendel errors
-    rawCount = 0
-    flipCount = 0
-    total = 0
-    mendelErrorCount = 0        
+    # Create new files with alt/ref flipped and remove sites with mendel errors 
     with open(file, 'rt') as sample, open(outputName, 'w') as output:
+        rawCount = 0
+        flipCount = 0
+        total = 0
+        mendelErrorCount = 0 
         for line in sample:
             if "##" in line:
                 output.write(line)
@@ -124,10 +123,10 @@ def altRefRevert(file):
         rawPercent = (rawCount / total) * 100
         flipPercent = (flipCount / total) * 100
         totalPercent = ((flipCount + rawCount) / total) * 100
-        print(f"For {key}, chr{chrom}, {rawCount} ({rawPercent:.2f}%) of the sites were unchanged")
-        print(f"For {key}, chr{chrom}, {flipCount} ({flipPercent:.2f}%) of the sites were switched to match the reference panel")
-        print(f"For {key}, chr{chrom}, {mendelErrorCount} sites were removed due to mendel errors\n")
-        print(f"For {key}, chr{chrom}, {totalPercent:.2f}% of the sites were kept and are now congruent with the reference panel\n")
+        print(f"For {file}, {rawCount} ({rawPercent:.2f}%) of the sites were unchanged")
+        print(f"For {file}, {flipCount} ({flipPercent:.2f}%) of the sites were switched to match the reference panel")
+        print(f"For {file}, {mendelErrorCount} sites were removed due to mendel errors\n")
+        print(f"For {file}, {totalPercent:.2f}% of the sites were kept and are now congruent with the reference panel\n")
 
 # Create new files with alt/ref flipped and remove sites with mendel errors using fileDict where key is familyID and value is list of files
 # for members of that family. 
