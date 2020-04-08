@@ -88,9 +88,15 @@ def runShapeit(file):
                 os.system(f"/shapeit.v2.904.3.10.0-693.11.6.el7.x86_64/bin/shapeit -B {file} --output-log {file}_phased_mcmc.log -O {file}_phased_mcmc -M /references/1000GP_Phase3/genetic_map_{chromosome}_combined_b37.txt \
                 --input-ref /references/1000GP_Phase3/1000GP_Phase3_{chromosome}.hap.gz /references/1000GP_Phase3/1000GP_Phase3_{chromosome}.legend.gz \
                 /references/1000GP_Phase3/1000GP_Phase3.sample --thread 3 --no-mcmc --force --seed 123456789")
-    # Convert phased files to vcf files and bgzip output vcf
-    os.system(f"/shapeit.v2.904.3.10.0-693.11.6.el7.x86_64/bin/shapeit -convert --input-haps {file}_phased_mcmc --output-log {file}_phased_mcmc_vcf.log --output-vcf {file}_phased_mcmc.vcf --seed 123456789")
-    return(tempList)
+    # Convert phased files to vcf files and bgzip output vcf as long as there is still no underlfow
+    logFile = f"{file}_phased_mcmc.log"
+    with open(logFile) as logFile:
+        logFile = logFile.read()
+        if "ERROR: Underflow" not in logFile:
+            os.system(f"/shapeit.v2.904.3.10.0-693.11.6.el7.x86_64/bin/shapeit -convert --input-haps {file}_phased_mcmc --output-log {file}_phased_mcmc_vcf.log --output-vcf {file}_phased_mcmc.vcf --seed 123456789")
+            return(tempList)
+        else:
+            return([f"{file} not phased due to underflow issues"])
 
 rephasedFiles = []
 for trio, chrFiles in fileDict.items():
