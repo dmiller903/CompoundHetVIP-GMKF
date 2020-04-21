@@ -100,7 +100,10 @@ with open(outputFile, 'w') as output:
     output.write("file_name\tfamily_id\tsample_id\tproband\tsex\n")
     for item in trioList:
         externalID = participantID_externalID[item[1]]
-        biospecimenID = biospecimenDict[externalID]
+        try:
+            biospecimenID = biospecimenDict[externalID]
+        except:
+            print(f'The external ID: {externalID} does not exist')
         if item[-1] == "Female":
             output.write(f"{item[0]}\t{item[2]}\t{biospecimenID}\t{item[3]}\t2\n")
         else:
