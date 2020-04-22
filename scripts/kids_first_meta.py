@@ -98,19 +98,22 @@ for key, value in familyDict.items():
 # Output information to outputFile
 with open(outputFile, 'w') as output:
     output.write("file_name\tfamily_id\tsample_id\tproband\tsex\n")
+    total_excluded = 0
     for item in trioList:
         externalID = participantID_externalID[item[1]]
         try:
             biospecimenID = biospecimenDict[externalID]
         except:
-            print(f'The external ID: {externalID} does not exist')
+            print(f'The external ID: {externalID} does not exist and was not added to output file')
+            total_excluded += 1
+            continue
         if item[-1] == "Female":
             output.write(f"{item[0]}\t{item[2]}\t{biospecimenID}\t{item[3]}\t2\n")
         else:
             output.write(f"{item[0]}\t{item[2]}\t{biospecimenID}\t{item[3]}\t1\n")
 
 # Output message and time complete
-print(f"{char}There are {len(trioList) / 3} trios.{char}")
+print(f"{char}There are {(len(trioList) / 3) - total_excluded} trios.{char}")
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
 timeElapsedHours = round(timeElapsedMinutes / 60, 2)
 print(f'{char}Done. Time elapsed: {timeElapsedMinutes} minutes ({timeElapsedHours} hours){char}')
