@@ -44,10 +44,11 @@ with open(inputFile) as sampleFile:
         sampleId = sampleData[sampleIdIndex]
         sampleFamilyId = sampleData[familyIdIndex]
         actualFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleId}/{sampleId}_parsed.vcf.gz"
-        if sampleFamilyId not in fileDict and os.path.exists(f"{pathToFiles}/{sampleFamilyId}"):
+        outputName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio.vcf.gz"
+        if sampleFamilyId not in fileDict and os.path.exists(f"{pathToFiles}/{sampleFamilyId}") and not os.path.exists(f"{outputName}"):
             fileDict[sampleFamilyId] = [actualFileName]
             familyList.append(sampleFamilyId)
-        elif sampleFamilyId in fileDict and os.path.exists(f"{pathToFiles}/{sampleFamilyId}"):
+        elif sampleFamilyId in fileDict and os.path.exists(f"{pathToFiles}/{sampleFamilyId}") and not os.path.exists(f"{outputName}"):
             fileDict[sampleFamilyId].append(actualFileName)
 
 probandDict = {}

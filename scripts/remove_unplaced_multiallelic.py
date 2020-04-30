@@ -30,7 +30,8 @@ with open(inputFile) as sampleFile:
         sampleFamilyId = sampleData[familyIdIndex]
         sampleId = sampleData[sampleIdIndex]
         trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_liftover.vcf.gz"
-        if os.path.exists(f"{trioFileName}"):
+        outputName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_liftover_parsed.vcf.gz"
+        if os.path.exists(f"{trioFileName}") and not os.path.exists(f"{outputName}"):
             fileSet.add(trioFileName)
 
 # Set of Chromosomes to Keep

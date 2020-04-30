@@ -47,7 +47,8 @@ with open(inputFile) as sampleFile:
         sampleId = sampleData[sampleIdIndex]
         for chromosome in chromosomes:
             trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}"
-            if os.path.exists(f"{trioFileName}.vcf"):
+            outputName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_phased_mcmc.haps"
+            if os.path.exists(f"{trioFileName}.vcf") and not os.path.exists(f"{outputName}"):
                 if sampleFamilyId not in fileDict:
                     fileDict[sampleFamilyId] = set()
                     fileDict[sampleFamilyId].add(trioFileName)
