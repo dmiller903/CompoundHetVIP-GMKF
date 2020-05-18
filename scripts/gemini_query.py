@@ -66,8 +66,14 @@ query6 = f'gemini de_novo --columns "chrom, start, end, vcf_id, ref, alt, gene, 
 > {pathToFiles}/{diseaseName}_de_novo_impactHM_cadd15.tsv'
 queryList.append(query6)
 
+# Get total number of variants per sample
+query7 = f'gemini stats --vars-by-sample \
+{pathToFiles}/{diseaseName}_phased_mcmc_samples_annotated_cadd.db \
+> {pathToFiles}/{diseaseName}_variants_by_sample.tsv'
+queryList.append(query7)
+
 # Use queryList to run all queries in parallel
-with concurrent.futures.ProcessPoolExecutor(max_workers=6) as executor:
+with concurrent.futures.ProcessPoolExecutor(max_workers=7) as executor:
     executor.map(queries, queryList)
 
 #Output time information
