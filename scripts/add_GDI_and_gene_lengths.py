@@ -17,6 +17,8 @@ parser.add_argument('gemini_query_file', help='File generate by GEMINI query')
 parser.add_argument('output_file', help='Name of output file')
 parser.add_argument('--anonymize', help="If controlled data is used, and you need to transfer the output file off of a \
 secure server, this script can anonymize identifying information", default='y')
+parser.add_argument('--stat_file', help='If you want the stat file anonymized as well, indicate \
+the name of the stat file')
 
 args = parser.parse_args()
 
@@ -24,6 +26,7 @@ args = parser.parse_args()
 geminiQuery = args.gemini_query_file
 outputFile = args.output_file
 anonymizePatients = args.anonymize
+statFile = args.stat_file
 
 # Function to get total gene lengths and gene exon lengths
 def getLengths(tsvFile):
@@ -131,16 +134,20 @@ with open("/GDI_output.txt") as gdiScores:
 
 # Create new sample names based on family id
 familyDict = {}
+patientDict = {}
 with open(geminiQuery) as queryFile:
     header = queryFile.readline()
     headerList = header.rstrip("\n").split("\t")
     familyIndex = headerList.index("family_id")
+    sampleIndex = headerList.index("samples")
     familyCount = 1
     for line in queryFile:
         lineList = line.rstrip("\n").split("\t")
         familyId = lineList[familyIndex]
+        sampleId = lineList[sampleIndex]
         if familyId not in familyDict:
             familyDict[familyId] = "patient_{}".format(familyCount)
+            patientDict[sampleId] = "patient_{}".format(familyCount)
             familyCount += 1
 
 if anonymizePatients == "y":
@@ -178,6 +185,17 @@ if anonymizePatients == "y":
                 outputFile.write(f"{patient}\t{gender}\t{line}\tNA\tNA\t{gdiDict[gene][0]}\t{gdiDict[gene][1]}\n")
             else:
                 outputFile.write(f"{patient}\t{gender}\t{line}\tNA\tNA\tNA\tNA\n")
+    if statFile is not None:
+        with open(statFile) as stats, open(statFile.rstrip(".tsv") + "_anonymized.tsv", "w") as outputFile:
+            header = stats.readline()
+            outputFile.write(header)
+            for line in stats:
+                lineList = line.rstrip("\n").split("\t")
+                if lineList[0] in patientDict:
+                    patient = patientDict[lineList[0]]
+                    newLine = f'{patient}\t{lineList[1]}\n'
+                    outputFile.write(newLine)
+
 elif anonymizePatients == "n":
     #Add gene lengths, and Add GDI values to output file
     with open(geminiQuery) as queryFile, open(outputFile, 'w') as outputFile:
