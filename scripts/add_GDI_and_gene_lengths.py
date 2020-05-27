@@ -127,9 +127,9 @@ with open(geminiQuery) as queryFile, open("/tmp/new_query.txt", 'w') as newQuery
         else:
             newQueryFile.write(line)
 
-# Create a list of genes that are in the GEMINI query and a file of genes
+# Create a set of genes that are in the GEMINI query and a file of genes
 newQueryFile = "/tmp/new_query.txt"
-geneList = []
+geneSet = set()
 with open(newQueryFile) as queryFile, open("/gene_list.txt", 'w') as geneFile:
     header = queryFile.readline()
     headerList = header.rstrip("\n").split("\t")
@@ -137,13 +137,13 @@ with open(newQueryFile) as queryFile, open("/gene_list.txt", 'w') as geneFile:
     for line in queryFile:
         lineList = line.rstrip("\n").split("\t")
         gene = lineList[geneIndex]
-        geneList.append(gene)
+        geneSet.add(gene)
         geneFile.write(gene + "\n")
 
 # Create a new gencode file that only includes the genes that are in the CH review
 with gzip.open("/gencode.v33.annotation.gtf.gz", 'rt') as gencode, open("/tmp/gencode_parsed.tsv", 'w') as output:
     for line in gencode:
-        for gene in geneList:
+        for gene in geneSet:
             if "#" not in line and (("\tCDS\t" in line and 'transcript_type "protein_coding"' in line) or "\tgene\t" in line) and gene in line:
                 output.write(line)
 
