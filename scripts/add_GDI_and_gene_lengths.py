@@ -91,9 +91,46 @@ with open("/add_GDI_raw.py") as raw, open("/add_GDI.py", "w") as newFile:
         if "print" not in line:
             newFile.write(line)
 
+# Identify false positive CH variants and create a dictionary.
+chDict = {}
+with open(geminiQuery) as queryFile:
+    header = queryFile.readline()
+    headerList = header.rstrip("\n").split("\t")
+    sampleIndex = headerList.index("samples")
+    genotypesIndex = headerList.index("family_genotypes")
+    geneIndex = headerList.index("gene")
+    for line in queryFile:
+        lineList = line.rstrip("\n").split("\t")
+        sample = lineList[sampleIndex]
+        genotypes = lineList[genotypesIndex]
+        gene = lineList[geneIndex]
+        if sample not in chDict and "." in genotypes:
+            chDict[sample] = [gene]
+        elif sample in chDict and gene not in chDict[sample] and "." in genotypes:
+            chDict[sample].append(gene)
+
+# Create new GEMINI query file with false positive CH variants removed:
+with open(geminiQuery) as queryFile, open("/tmp/new_query.txt", 'w') as newQueryFile:
+    header = queryFile.readline()
+    headerList = header.rstrip("\n").split("\t")
+    sampleIndex = headerList.index("samples")
+    genotypesIndex = headerList.index("family_genotypes")
+    geneIndex = headerList.index("gene")
+    newQueryFile.write(header)
+    for line in queryFile:
+        lineList = line.rstrip("\n").split("\t")
+        sample = lineList[sampleIndex]
+        genotypes = lineList[genotypesIndex]
+        gene = lineList[geneIndex]
+        if sample in chDict and gene in chDict[sample]:
+            continue
+        else:
+            newQueryFile.write(line)
+
 # Create a list of genes that are in the GEMINI query and a file of genes
+newQueryFile = "/tmp/new_query.txt"
 geneList = []
-with open(geminiQuery) as queryFile, open("/gene_list.txt", 'w') as geneFile:
+with open(newQueryFile) as queryFile, open("/gene_list.txt", 'w') as geneFile:
     header = queryFile.readline()
     headerList = header.rstrip("\n").split("\t")
     geneIndex = headerList.index("gene")
@@ -132,27 +169,27 @@ with open("/GDI_output.txt") as gdiScores:
         lineList = line.rstrip("\n").split("\t")
         gdiDict[lineList[0]] = [lineList[1], lineList[2]]
 
-# Create new sample names based on family id
-familyDict = {}
-patientDict = {}
-with open(geminiQuery) as queryFile:
-    header = queryFile.readline()
-    headerList = header.rstrip("\n").split("\t")
-    familyIndex = headerList.index("family_id")
-    sampleIndex = headerList.index("samples")
-    familyCount = 1
-    for line in queryFile:
-        lineList = line.rstrip("\n").split("\t")
-        familyId = lineList[familyIndex]
-        sampleId = lineList[sampleIndex]
-        if familyId not in familyDict:
-            familyDict[familyId] = "patient_{}".format(familyCount)
-            patientDict[sampleId] = "patient_{}".format(familyCount)
-            familyCount += 1
-
 if anonymizePatients == "y":
+    # Create new sample names based on family id
+    familyDict = {}
+    patientDict = {}
+    with open(newQueryFile) as queryFile:
+        header = queryFile.readline()
+        headerList = header.rstrip("\n").split("\t")
+        familyIndex = headerList.index("family_id")
+        sampleIndex = headerList.index("samples")
+        familyCount = 1
+        for line in queryFile:
+            lineList = line.rstrip("\n").split("\t")
+            familyId = lineList[familyIndex]
+            sampleId = lineList[sampleIndex]
+            if familyId not in familyDict:
+                familyDict[familyId] = "patient_{}".format(familyCount)
+                patientDict[sampleId] = "patient_{}".format(familyCount)
+                familyCount += 1
+
     # Anonymize patients, Add gene lengths, and Add GDI values to output file
-    with open(geminiQuery) as queryFile, open(outputFile, 'w') as outputFile:
+    with open(newQueryFile) as queryFile, open(outputFile, 'w') as outputFile:
         header = queryFile.readline()
         headerList = header.rstrip("\n").split("\t")
         geneIndex = headerList.index("gene")
@@ -198,7 +235,7 @@ if anonymizePatients == "y":
 
 elif anonymizePatients == "n":
     #Add gene lengths, and Add GDI values to output file
-    with open(geminiQuery) as queryFile, open(outputFile, 'w') as outputFile:
+    with open(newQueryFile) as queryFile, open(outputFile, 'w') as outputFile:
         header = queryFile.readline().rstrip("\n")
         headerList = header.rstrip("\n").split("\t")
         geneIndex = headerList.index("gene")
