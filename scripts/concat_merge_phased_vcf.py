@@ -124,7 +124,7 @@ with open(inputFile) as sampleFile:
                     paternal = key
                 else:
                     maternal = key
-            sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t{paternal}\t{paternal}\t{gender}\t2\n"
+            sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t{paternal}\t{maternal}\t{gender}\t2\n"
         else:
             sampleDict[sampleId] = f"{sampleFamilyId}\t{sampleId}\t0\t0\t{gender}\t1\n"
             
