@@ -11,7 +11,7 @@ char = '\n' + ('*' * 70) + '\n'
 
 # Argparse Information
 parser = argparse.ArgumentParser(description='Adds GDI scores and gene lengths to a GEMINI query file. If working with \
-controlled data, this script can also anonymize family ID and patient ID information.')
+controlled data, this script can also anonymize family ID and sample ID information.')
 
 parser.add_argument('gemini_query_file', help='File generate by GEMINI query')
 parser.add_argument('output_file', help='Name of output file')
@@ -25,7 +25,7 @@ args = parser.parse_args()
 #Create variables of each argument from argparse
 geminiQuery = args.gemini_query_file
 outputFile = args.output_file
-anonymizePatients = args.anonymize
+anonymizeSamples = args.anonymize
 statFile = args.stat_file
 
 # Function to get total gene lengths and gene exon lengths
@@ -96,8 +96,12 @@ chDict = {}
 with open(geminiQuery) as queryFile:
     header = queryFile.readline()
     headerList = header.rstrip("\n").split("\t")
-    sampleIndex = headerList.index("samples")
-    genotypesIndex = headerList.index("family_genotypes")
+    if "family_genotypes" in header:
+        sampleIndex = headerList.index("samples")
+        genotypesIndex = headerList.index("family_genotypes")
+    else:
+        sampleIndex = headerList.index("sample")
+        genotypesIndex = headerList.index("genotype")
     geneIndex = headerList.index("gene")
     for line in queryFile:
         lineList = line.rstrip("\n").split("\t")
@@ -113,14 +117,15 @@ with open(geminiQuery) as queryFile:
 with open(geminiQuery) as queryFile, open("/tmp/new_query.txt", 'w') as newQueryFile:
     header = queryFile.readline()
     headerList = header.rstrip("\n").split("\t")
-    sampleIndex = headerList.index("samples")
-    genotypesIndex = headerList.index("family_genotypes")
+    if "family_genotypes" in header:
+        sampleIndex = headerList.index("samples")
+    else:
+        sampleIndex = headerList.index("sample")
     geneIndex = headerList.index("gene")
     newQueryFile.write(header)
     for line in queryFile:
         lineList = line.rstrip("\n").split("\t")
         sample = lineList[sampleIndex]
-        genotypes = lineList[genotypesIndex]
         gene = lineList[geneIndex]
         if sample in chDict and gene in chDict[sample]:
             continue
@@ -169,71 +174,76 @@ with open("/GDI_output.txt") as gdiScores:
         lineList = line.rstrip("\n").split("\t")
         gdiDict[lineList[0]] = [lineList[1], lineList[2]]
 
-if anonymizePatients == "y":
+if anonymizeSamples == "y":
     # Create new sample names based on family id
-    familyDict = {}
-    patientDict = {}
+    sampleDict = {}
     with open(newQueryFile) as queryFile:
         header = queryFile.readline()
         headerList = header.rstrip("\n").split("\t")
-        familyIndex = headerList.index("family_id")
-        sampleIndex = headerList.index("samples")
+        if "family_genotypes" in header:
+            sampleIndex = headerList.index("samples")
+            genotypesIndex = headerList.index("family_genotypes")
+        else:
+            sampleIndex = headerList.index("sample")
+            genotypesIndex = headerList.index("genotype")
         familyCount = 1
         for line in queryFile:
             lineList = line.rstrip("\n").split("\t")
-            familyId = lineList[familyIndex]
             sampleId = lineList[sampleIndex]
-            if familyId not in familyDict:
-                familyDict[familyId] = "patient_{}".format(familyCount)
-                patientDict[sampleId] = "patient_{}".format(familyCount)
+            if sampleId not in sampleDict:
+                sampleDict[sampleId] = "sample_{}".format(familyCount)
                 familyCount += 1
 
-    # Anonymize patients, Add gene lengths, and Add GDI values to output file
+    # Anonymize samples, Add gene lengths, and Add GDI values to output file
     with open(newQueryFile) as queryFile, open(outputFile, 'w') as outputFile:
         header = queryFile.readline()
         headerList = header.rstrip("\n").split("\t")
         geneIndex = headerList.index("gene")
-        familyIndex = headerList.index("family_id")
-        familyMembersIndex = headerList.index("family_members")
-        samplesIndex = headerList.index("samples")
+        if "family_members" in header:
+            familyIndex = headerList.index("family_id")
+            familyMembersIndex = headerList.index("family_members")
+            sampleIndex = headerList.index("samples")
+        else:
+            sampleIndex = headerList.index("sample")
+            familyMembersIndex = None
+            familyIndex = None
         newHeaderList = []
         for i, item in enumerate(headerList):
-            if i not in [familyIndex, familyMembersIndex, samplesIndex]:
+            if i not in [familyIndex, familyMembersIndex, sampleIndex]:
                 newHeaderList.append(item)
         header = "\t".join(newHeaderList)
-        header = f"patient\tgender\t{header}\tcds_gene_length\ttotal_gene_length\tGDI-raw\tGDI-Phred\n"
+        header = f"sample\t{header}\tcds_gene_length\ttotal_gene_length\tGDI-raw\tGDI-Phred\n"
         outputFile.write(header)
         for line in queryFile:
             lineList = line.rstrip("\n").split("\t")
             gene = lineList[geneIndex]
-            patient = lineList[familyIndex]
-            patient = familyDict[patient]
-            gender = re.findall(r"affected;(\w+)\)", line)[0]
+            sample = lineList[sampleIndex]
+            sample = sampleDict[sample]
             newLineList = []
             for i, item in enumerate(lineList):
-                if i not in [familyIndex, familyMembersIndex, samplesIndex]:
+                if i not in [familyIndex, familyMembersIndex, sampleIndex]:
                     newLineList.append(item)
             line = "\t".join(newLineList)
             if gene in geneLengths and gene in gdiDict:
-                outputFile.write(f"{patient}\t{gender}\t{line}\t{geneLengths[gene][0]}\t{geneLengths[gene][1]}\t{gdiDict[gene][0]}\t{gdiDict[gene][1]}\n")
+                outputFile.write(f"{sample}\t{line}\t{geneLengths[gene][0]}\t{geneLengths[gene][1]}\t{gdiDict[gene][0]}\t{gdiDict[gene][1]}\n")
             elif gene in geneLengths and gene not in gdiDict:
-                outputFile.write(f"{patient}\t{gender}\t{line}\t{geneLengths[gene][0]}\t{geneLengths[gene][1]}\tNA\tNA\n")
+                outputFile.write(f"{sample}\t{line}\t{geneLengths[gene][0]}\t{geneLengths[gene][1]}\tNA\tNA\n")
             elif gene in gdiDict and gene not in geneLengths:
-                outputFile.write(f"{patient}\t{gender}\t{line}\tNA\tNA\t{gdiDict[gene][0]}\t{gdiDict[gene][1]}\n")
+                outputFile.write(f"{sample}\t{line}\tNA\tNA\t{gdiDict[gene][0]}\t{gdiDict[gene][1]}\n")
             else:
-                outputFile.write(f"{patient}\t{gender}\t{line}\tNA\tNA\tNA\tNA\n")
+                outputFile.write(f"{sample}\t{line}\tNA\tNA\tNA\tNA\n")
     if statFile is not None:
         with open(statFile) as stats, open(statFile.rstrip(".tsv") + "_anonymized.tsv", "w") as outputFile:
             header = stats.readline()
             outputFile.write(header)
             for line in stats:
                 lineList = line.rstrip("\n").split("\t")
-                if lineList[0] in patientDict:
-                    patient = patientDict[lineList[0]]
-                    newLine = f'{patient}\t{lineList[1]}\n'
+                if lineList[0] in sampleDict:
+                    patient = sampleDict[lineList[0]]
+                    newLine = f'{sample}\t{lineList[1]}\n'
                     outputFile.write(newLine)
 
-elif anonymizePatients == "n":
+elif anonymizeSamples == "n":
     #Add gene lengths, and Add GDI values to output file
     with open(newQueryFile) as queryFile, open(outputFile, 'w') as outputFile:
         header = queryFile.readline().rstrip("\n")
@@ -244,6 +254,7 @@ elif anonymizePatients == "n":
         for line in queryFile:
             lineList = line.rstrip("\n").split("\t")
             gene = lineList[geneIndex]
+            line = line.rstrip("\n")
             if gene in geneLengths and gene in gdiDict:
                 outputFile.write(f"{line}\t{geneLengths[gene][0]}\t{geneLengths[gene][1]}\t{gdiDict[gene][0]}\t{gdiDict[gene][1]}\n")
             elif gene in geneLengths and gene not in gdiDict:
