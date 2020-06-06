@@ -43,6 +43,8 @@ def getNumericGenotype(genotype, ref, alt):
             secondAllele = "."
         newGenotype = f"{firstAllele}|{secondAllele}"
         return(newGenotype)
+    else:
+        return(".|.")
 
 #Function to grab information from header of input file
 def getHeaderInfo(headerList):
@@ -120,10 +122,10 @@ with open(inputFile) as geminiFile:
                     sample = headerList[sampleIndex]
                     genotype = lineList[sampleIndex]
                     newGenotype = getNumericGenotype(genotype, ref, alt)
-                    if gene not in sampleGenotype[sample]:
+                    if gene not in sampleGenotype[sample] and "." not in newGenotype:
                         sampleGenotype[sample][gene] = [newGenotype]
                         samplePositions[sample][gene] = [start]
-                    elif gene in sampleGenotype[sample]:
+                    elif gene in sampleGenotype[sample] and "." not in newGenotype:
                         sampleGenotype[sample][gene].append(newGenotype)
                         samplePositions[sample][gene].append(start)
         elif cadd == "None" or maf == "None":
@@ -132,10 +134,10 @@ with open(inputFile) as geminiFile:
                     sample = headerList[sampleIndex]
                     genotype = lineList[sampleIndex]
                     newGenotype = getNumericGenotype(genotype, ref, alt)
-                    if gene not in sampleGenotype[sample]:
+                    if gene not in sampleGenotype[sample] and "." not in newGenotype:
                         sampleGenotype[sample][gene] = [newGenotype]
                         samplePositions[sample][gene] = [start]
-                    elif gene in sampleGenotype[sample]:
+                    elif gene in sampleGenotype[sample] and "." not in newGenotype:
                         sampleGenotype[sample][gene].append(newGenotype)
                         samplePositions[sample][gene].append(start)
         elif cadd != "None" and inputMaf == "None":
@@ -144,10 +146,10 @@ with open(inputFile) as geminiFile:
                     sample = headerList[sampleIndex]
                     genotype = lineList[sampleIndex]
                     newGenotype = getNumericGenotype(genotype, ref, alt)
-                    if gene not in sampleGenotype[sample]:
+                    if gene not in sampleGenotype[sample] and "." not in newGenotype:
                         sampleGenotype[sample][gene] = [newGenotype]
                         samplePositions[sample][gene] = [start]
-                    elif gene in sampleGenotype[sample]:
+                    elif gene in sampleGenotype[sample] and "." not in newGenotype:
                         sampleGenotype[sample][gene].append(newGenotype)
                         samplePositions[sample][gene].append(start)
 print("Sample Dictionaries Created.")
@@ -228,10 +230,11 @@ with open(inputFile) as geminiFile, open(outputFile, "w") as outputFile:
                 elif start in chPositionDict[sample][gene] and len(chPositionDict[sample][gene]) >= 2:
                     genotype = lineList[sampleIndex]
                     numericGenotype = getNumericGenotype(genotype, ref, alt)
-                    columnInfo = lineList[0:13]
-                    columnStr = "\t".join(columnInfo)
-                    newLine = f"{columnStr}\t{numericGenotype}\t{sample.lstrip('gts.')}\n"
-                    outputFile.write(newLine)
+                    if "." not in numericGenotype and numericGenotype in ["1|0", "0|1"]:
+                        columnInfo = lineList[0:13]
+                        columnStr = "\t".join(columnInfo)
+                        newLine = f"{columnStr}\t{numericGenotype}\t{sample.lstrip('gts.')}\n"
+                        outputFile.write(newLine)
 
 #Output time information
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
