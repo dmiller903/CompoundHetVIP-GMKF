@@ -17,11 +17,15 @@ if pathToFiles.endswith("/"):
 diseaseName = re.findall(r"([\w\-_]+)\/", pathToFiles)[0]
 familyFile = f"{pathToFiles}/{diseaseName}.fam"
 inputCadd = float(argv[2])
-inputMaf = float(argv[3])
-inputMafStr = argv[3].replace("0.", "")
 inputCaddStr = argv[2]
 inputFile = f"{pathToFiles}/{diseaseName}_gemini.tsv"
-outputFile = f"{pathToFiles}/{diseaseName}_CH_cadd{inputCaddStr}_maf{inputMafStr}.tsv"
+inputMaf = argv[3]
+if inputMaf != "None":
+    inputMaf = float(argv[3])
+    inputMafStr = argv[3].replace("0.", "")
+    outputFile = f"{pathToFiles}/{diseaseName}_CH_cadd{inputCaddStr}_maf{inputMafStr}.tsv"
+else:
+    outputFile = f"{pathToFiles}/{diseaseName}_CH_cadd{inputCaddStr}.tsv"
 
 #Function to get convert sample genotype from alpha to numeric
 def getNumericGenotype(genotype, ref, alt):
