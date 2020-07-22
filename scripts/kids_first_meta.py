@@ -44,14 +44,22 @@ with open(tsvTable) as table:
     familyIdIndex = tableColumnNames.index("Family Id")
     tableSampleIdIndex = tableColumnNames.index("Participants ID")
     probandIndex = tableColumnNames.index("Proband")
+    diagnosisIndex = tableColumnNames.index("Diagnosis (Source Text)")
     biospecimenIndex = tableColumnNames.index("Biospecimen ID")
     # Add to the initial dictionary where the key is the "Participants ID" as this is common across all input files.
     # The value is a list where value[0] the "File Name", value[1] is "Participants ID, value[2] is "Family Id", 
     # and value[3] is "Proband" as "Yes" or "No"
     for sample in table:
         sample = sample.rstrip().split("\t")
-        gender = genderDict[sample[tableSampleIdIndex]]
-        outputDict[sample[tableSampleIdIndex]] = [sample[fileNameIndex], sample[tableSampleIdIndex], sample[familyIdIndex], sample[probandIndex], sample[biospecimenIndex], gender]
+        proband = sample[probandIndex]
+        diagnosis = sample[diagnosisIndex]
+        if proband == "--" and diagnosis != "--":
+            proband = "Yes"
+        elif proband == "--" and diagnosis == "--":
+            proband = "No"
+        if sample[tableSampleIdIndex] in genderDict:
+            gender = genderDict[sample[tableSampleIdIndex]]
+            outputDict[sample[tableSampleIdIndex]] = [sample[fileNameIndex], sample[tableSampleIdIndex], sample[familyIdIndex], proband, sample[biospecimenIndex], gender]
 
 
 # Create list of samples where only trios are included
