@@ -73,7 +73,7 @@ for trio in fileDict:
     def runEagle(file):
         chromosome = re.findall(r"[\w\-\/_]+chr([0-9][0-9]?)", file)[0]
         outputName = "/tmp/" + re.findall(r"\/([\w\-_]+chr[0-9][0-9]?)", file)[0] + "_update.vcf"
-        filePrefix = re.findall(r"([\w\-\/_]+chr[0-9][0-9]?)", file)[0] + "_eagle_phased"
+        filePrefix = re.findall(r"([\w\-\/_]+chr[0-9][0-9]?)", file)[0] + "_beagle_phased"
         
         # VCF files must first have chr# changed to # only
         with open(file) as inputFile, open(outputName, 'w') as outputFile:
@@ -89,7 +89,7 @@ for trio in fileDict:
         os.system(f"java -Xmx40g -jar /beagle.25Nov19.28d.jar gt={outputName}.gz \
         out={filePrefix} \
         chrom={chromosome} \
-        map=/references/1000GP_Phase3/genetic_map_chr{chromosome}_combined_b37_eagle.txt \
+        map=/references/1000GP_Phase3/genetic_map_chr{chromosome}_combined_b37_beagle.txt \
         ref=/references/1000GP_Phase3/ALL.chr{chromosome}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz \
         impute=false")
     with concurrent.futures.ProcessPoolExecutor(max_workers=23) as executor:
