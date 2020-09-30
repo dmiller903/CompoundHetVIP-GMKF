@@ -61,8 +61,10 @@ def getHeaderInfo(headerList):
     mafIndex = headerList.index("aaf_1kg_all")
     lofIndex = headerList.index("is_lof")
     exonicIndex = headerList.index("is_exonic")
-    samples = headerList[13:]
-    return(startIndex, geneIndex, refIndex, altIndex, impactIndex, caddIndex, mafIndex, lofIndex, exonicIndex, samples)
+    rsIndex = headerList.index("rs_ids")
+    clinVarIndex = headerList.index("clinvar_sig")
+    samples = headerList[15:]
+    return(startIndex, geneIndex, refIndex, altIndex, impactIndex, caddIndex, mafIndex, lofIndex, exonicIndex, rsIndex, clinVarIndex, samples)
 
 #Function to grab information from line of input file
 def getLineInfo(lineList):
@@ -75,7 +77,9 @@ def getLineInfo(lineList):
     maf = lineList[mafIndex]
     lof = lineList[lofIndex]
     exonic = lineList[exonicIndex]
-    return(start, gene, ref, alt, impact, cadd, maf, lof, exonic)
+    rs = lineList[rsIndex]
+    clinVar = lineList[clinVarIndex]
+    return(start, gene, ref, alt, impact, cadd, maf, lof, exonic, rs, clinVar)
 
 def iterateThroughSamples():
     for sampleIndex in sampleIndexes:
@@ -93,7 +97,7 @@ def iterateThroughSamples():
 impactSeverity = "'LOW'"
 if not os.path.exists(f"{pathToFiles}/{diseaseName}_gemini.tsv"):
     os.system(f'gemini query --header -q "select chrom, start, vcf_id, ref, alt, gene, is_exonic, impact_severity, \
-        is_lof, aaf_1kg_all, cadd_scaled, impact, biotype, (gts).(*) from variants where impact_severity != {impactSeverity}" \
+        is_lof, aaf_1kg_all, cadd_scaled, impact, biotype, rs_ids, clinvar_sig, (gts).(*) from variants where impact_severity != {impactSeverity}" \
         {pathToFiles}/{diseaseName}_phased_mcmc_samples_annotated_cadd.db \
         > {pathToFiles}/{diseaseName}_gemini.tsv')
 
@@ -124,14 +128,14 @@ sampleIndexes = []
 with open(inputFile) as geminiFile:
     header = geminiFile.readline()
     headerList = header.rstrip("\n").split("\t")
-    startIndex, geneIndex, refIndex, altIndex, impactIndex, caddIndex, mafIndex, lofIndex, exonicIndex, samples = getHeaderInfo(headerList)
+    startIndex, geneIndex, refIndex, altIndex, impactIndex, caddIndex, mafIndex, lofIndex, exonicIndex, rsIndex, clinVarIndex, samples = getHeaderInfo(headerList)
     for sample in samples:
         sampleIndexes.append(headerList.index(sample))
         sampleGenotype[sample] = {}
         samplePositions[sample] = {}    
     for line in geminiFile:
         lineList = line.rstrip("\n").split("\t")
-        start, gene, ref, alt, impact, cadd, maf, lof, exonic = getLineInfo(lineList)
+        start, gene, ref, alt, impact, cadd, maf, lof, exonic, rs, clinVar = getLineInfo(lineList)
         if cadd != "None" and maf != "None":
             if ((impact == "HIGH" or lof == "1") or (impact == "MED" and float(cadd) >= inputCadd)) and float(maf) <= inputMaf:
                 iterateThroughSamples()
@@ -199,8 +203,8 @@ print("CH variant dictionaries created.")
 with open(inputFile) as geminiFile, open(outputFile, "w") as outputFile:
     header = geminiFile.readline()
     headerList = header.rstrip("\n").split("\t")
-    startIndex, geneIndex, refIndex, altIndex, impactIndex, caddIndex, mafIndex, lofIndex, exonicIndex, samples = getHeaderInfo(headerList)
-    columnInfo = headerList[0:13]
+    startIndex, geneIndex, refIndex, altIndex, impactIndex, caddIndex, mafIndex, lofIndex, exonicIndex, rsIndex, clinVarIndex, samples = getHeaderInfo(headerList)
+    columnInfo = headerList[0:15]
     newHeader = "\t".join(columnInfo) + "\tgenotype\tsample\n"
     outputFile.write(newHeader)
     
@@ -210,7 +214,7 @@ with open(inputFile) as geminiFile, open(outputFile, "w") as outputFile:
         sampleIndexes.append(patientIndex)
     for line in geminiFile:
         lineList = line.rstrip("\n").split("\t")
-        start, gene, ref, alt, impact, cadd, maf, lof, exonic = getLineInfo(lineList)
+        start, gene, ref, alt, impact, cadd, maf, lof, exonic, rs, clinVar = getLineInfo(lineList)
         for sampleIndex in sampleIndexes:
             sample = headerList[sampleIndex]
             parent1 = familyDict[sample][0]
@@ -224,7 +228,7 @@ with open(inputFile) as geminiFile, open(outputFile, "w") as outputFile:
                     genotype = lineList[sampleIndex]
                     numericGenotype = getNumericGenotype(genotype, ref, alt)
                     if "." not in numericGenotype and numericGenotype in ["1|0", "0|1"]:
-                        columnInfo = lineList[0:13]
+                        columnInfo = lineList[0:15]
                         columnStr = "\t".join(columnInfo)
                         newLine = f"{columnStr}\t{numericGenotype}\t{sample.lstrip('gts.')}\n"
                         outputFile.write(newLine)
