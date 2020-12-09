@@ -47,13 +47,6 @@ apt-get update \
   # Install shapeit
   && wget --no-check-certificate https://mathgen.stats.ox.ac.uk/genetics_software/shapeit/shapeit.v2.r904.glibcv2.17.linux.tar.gz \
   && tar -zxvf shapeit.v2.r904.glibcv2.17.linux.tar.gz \
-  # Download Beagle Java file
-  && wget --no-check-certificate http://faculty.washington.edu/browning/beagle/beagle.25Nov19.28d.jar \
-  # Download and Extract Eagle executable
-  && wget --no-check-certificate https://data.broadinstitute.org/alkesgroup/Eagle/downloads/Eagle_v2.4.1.tar.gz \
-  && tar xzf Eagle_v2.4.1.tar.gz \
-  && rm Eagle_v2.4.1.tar.gz \
-  && echo "eagle='./Eagle_v2.4.1/eagle'" > .bash_profile \
   # Install vt
   && conda install -c bioconda vt=2015.11.10 \
   # Install grabix (needed for GEMINI)
@@ -72,7 +65,7 @@ apt-get update \
   # Download Gene Damage Index (GDI) Files
   && wget --no-check-certificate http://lab.rockefeller.edu/casanova/assets/file/add_GDI.py.txt -O /add_GDI_raw.py \
   && wget --no-check-certificate http://lab.rockefeller.edu/casanova/assets/file/GDI_full_10282015.txt -O /GDI_full.txt \
-  # Clone CompoundHetVIP from github and place python scripts at root
+  # Clone CompoundHetVIP-GMKF from github and place python scripts at root
   && git config --global http.sslverify "false" \
   && git clone https://github.com/dmiller903/CompoundHetVIP-GMKF.git \
   && cp CompoundHetVIP-GMKF/scripts/*.py / \
