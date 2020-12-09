@@ -4,6 +4,7 @@ import os
 import concurrent.futures
 from sys import argv
 import time
+import subprocess
 
 # Keep track of when the script began
 startTime = time.time()
@@ -14,6 +15,33 @@ inputFile = argv[1]
 pathToFiles = argv[2]
 if pathToFiles.endswith("/"):
     pathToFiles = pathToFiles[0:-1]
+
+def runBeagle(file):
+    chromosome = re.findall(r"[\w\-\/_]+chr([0-9][0-9]?)", file)[0]
+    outputName = "/tmp/" + re.findall(r"\/([\w\-_]+chr[0-9][0-9]?)", file)[0] + "_update.vcf"
+    filePrefix = re.findall(r"([\w\-\/_]+chr[0-9][0-9]?)", file)[0] + "_beagle_phased"
+    
+    # VCF files must first have chr# changed to # only
+    with open(file) as inputFile, open(outputName, 'w') as outputFile:
+        for line in inputFile:
+            line = line.replace(f"chr{chromosome}", f"{chromosome}")
+            outputFile.write(line)
+
+    # Updated VCF needs to be bgzipped and tabixed
+    os.system(f"/root/miniconda2/bin/bgzip {outputName}")
+    os.system(f"/root/miniconda2/bin/tabix {outputName}.gz")
+
+    # Phase with Eagle
+    try:
+        processToRun = f"java -Xmx40g -jar /beagle.25Nov19.28d.jar gt={outputName}.gz \
+        out={filePrefix} \
+        chrom={chromosome} \
+        map=/references/1000GP_Phase3/genetic_map_chr{chromosome}_combined_b37_beagle.txt \
+        ref=/references/1000GP_Phase3/ALL.chr{chromosome}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz \
+        impute=false"
+        subprocess.call(processToRun, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except:
+        print(f'{outputName} can not be phased.')
 
 # Download reference files if necessary
 if not os.path.exists("/references/1000GP_Phase3/1000GP_Phase3.sample"):
@@ -48,7 +76,7 @@ if not os.path.exists("/references/1000GP_Phase3/genetic_map_chr1_combined_b37_b
         updateFiles(file)
 
 #Create a list of file(s) that need to have unplaced and multiallelic sites removed
-fileDict = dict()
+fileDict = {}
 with open(inputFile) as sampleFile:
     header = sampleFile.readline()
     headerList = header.rstrip().split("\t")
@@ -65,35 +93,14 @@ with open(inputFile) as sampleFile:
         if sampleFamilyId not in fileDict:
             fileDict[sampleFamilyId] = set()
             for chromosome in chromosomes:
-                trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}.vcf"
-                fileDict[sampleFamilyId].add(trioFileName)
+                if not os.path.exists(f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}_beagle_phased.vcf.gz"):
+                    trioFileName = f"{pathToFiles}/{sampleFamilyId}/{sampleFamilyId}_trio/{sampleFamilyId}_trio_{chromosome}.vcf"
+                    fileDict[sampleFamilyId].add(trioFileName)
 
 for trio in fileDict:
     trioChr = fileDict[trio]
-    def runEagle(file):
-        chromosome = re.findall(r"[\w\-\/_]+chr([0-9][0-9]?)", file)[0]
-        outputName = "/tmp/" + re.findall(r"\/([\w\-_]+chr[0-9][0-9]?)", file)[0] + "_update.vcf"
-        filePrefix = re.findall(r"([\w\-\/_]+chr[0-9][0-9]?)", file)[0] + "_beagle_phased"
-        
-        # VCF files must first have chr# changed to # only
-        with open(file) as inputFile, open(outputName, 'w') as outputFile:
-            for line in inputFile:
-                line = line.replace(f"chr{chromosome}", f"{chromosome}")
-                outputFile.write(line)
-
-        # Updated VCF needs to be bgzipped and tabixed
-        os.system(f"/root/miniconda2/bin/bgzip {outputName}")
-        os.system(f"/root/miniconda2/bin/tabix {outputName}.gz")
-
-        # Phase with Eagle
-        os.system(f"java -Xmx40g -jar /beagle.25Nov19.28d.jar gt={outputName}.gz \
-        out={filePrefix} \
-        chrom={chromosome} \
-        map=/references/1000GP_Phase3/genetic_map_chr{chromosome}_combined_b37_beagle.txt \
-        ref=/references/1000GP_Phase3/ALL.chr{chromosome}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz \
-        impute=false")
     with concurrent.futures.ProcessPoolExecutor(max_workers=23) as executor:
-        executor.map(runEagle, trioChr)
+        executor.map(runBeagle, trioChr)
 
 # Output message and time complete
 timeElapsedMinutes = round((time.time()-startTime) / 60, 2)
